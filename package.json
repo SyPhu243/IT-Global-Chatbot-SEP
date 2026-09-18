@@ -1,0 +1,24 @@
+{
+  "name": "it-global-chatbot-sep",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SyPhu243/IT-Global-Chatbot-SEP.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/SyPhu243/IT-Global-Chatbot-SEP/issues"
+  },
+  "homepage": "https://github.com/SyPhu243/IT-Global-Chatbot-SEP#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
