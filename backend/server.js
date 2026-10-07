@@ -1,20 +1,14 @@
 import 'dotenv/config';
-import { contactFormLimiter } from './middlewares/rateLimiter.js';
 import express from 'express';
-import pg from 'pg';
+import pool from './db.js';
+import contactRoutes from './routes/contactRoutes.js';
 
-const { Pool } = pg;
 const app = express();
 
 app.use(express.json());
 
-const pool = new Pool({
-    host: process.env.DB_HOST || "db",
-    port: process.env.DB_PORT || 5432,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
-});
+// API lưu thông tin Contact
+app.use("/api/contacts", contactRoutes);
 
 app.get("/api/db-test", async (req, res) => {
     try {
