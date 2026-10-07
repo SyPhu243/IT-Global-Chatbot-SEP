@@ -1,8 +1,9 @@
-require("dotenv").config();
+import 'dotenv/config';
+import { contactFormLimiter } from './middlewares/rateLimiter.js';
+import express from 'express';
+import pg from 'pg';
 
-const express = require("express");
-const { Pool } = require("pg");
-
+const { Pool } = pg;
 const app = express();
 
 app.use(express.json());
