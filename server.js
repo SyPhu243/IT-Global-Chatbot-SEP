@@ -1,7 +1,9 @@
 const express = require('express');
 const app = express();
+import cors from 'cors';
 
 app.use(express.json());
+app.use(cors());
 
 app.post('/api/chat', (req, res) => {
     const userMessage = req.body.message || "";
