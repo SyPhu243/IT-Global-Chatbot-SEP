@@ -2,10 +2,12 @@ import 'dotenv/config';
 import express from 'express';
 import pool from './db.js';
 import contactRoutes from './routes/contactRoutes.js';
+import cors from 'cors';
 
 const app = express();
 
 app.use(express.json());
+app.use(cors());
 
 // API lưu thông tin Contact
 app.use("/api/contacts", contactRoutes);
