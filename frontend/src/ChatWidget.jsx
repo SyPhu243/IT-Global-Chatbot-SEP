@@ -9,35 +9,27 @@ const IT_GLOBAL_SUGGESTIONS = [
 export default function ChatWidget() {
   const [activeTab, setActiveTab] = useState("ai"); // "ai" | "agent"
   const [aiMessages, setAiMessages] = useState([
-    {
-      id: 1,
-      sender: "bot",
-      text: "IT-Global có thể giúp gì cho bạn ?",
-    },
-    {
-      id: 2,
-      sender: "bot",
-      text: "Chúng tôi sẽ cố gắng hết sức để giải quyết vấn đề mà bạn đưa ra",
-    },
+    { id: 1, sender: "bot", text: "IT-Global có thể giúp gì cho bạn ?" },
+    { id: 2, sender: "bot", text: "Chúng tôi sẽ cố gắng hết sức để giải quyết vấn đề mà bạn đưa ra" },
   ]);
   const [agentMessages, setAgentMessages] = useState([
-    {
-      id: 101,
-      sender: "bot",
-      text: "Xin chào! Bạn đang kết nối với tư vấn viên của IT-Global.",
-    },
-    {
-      id: 102,
-      sender: "bot",
-      text: "Vui lòng để lại nhu cầu dự án hoặc số điện thoại, chúng tôi sẽ hỗ trợ ngay.",
-    },
+    { id: 101, sender: "bot", text: "Xin chào! Bạn đang kết nối với tư vấn viên của IT-Global." },
+    { id: 102, sender: "bot", text: "Vui lòng để lại nhu cầu dự án hoặc số điện thoại, chúng tôi sẽ hỗ trợ ngay." },
   ]);
 
   const [inputText, setInputText] = useState("");
   const [hasSentFirstMessage, setHasSentFirstMessage] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // Quản lý session LocalStorage (Task 594)
+  // Logic Like / Dislike đánh giá
+  const [hasRated, setHasRated] = useState(() => {
+    return localStorage.getItem("chat_widget_rated") === "true";
+  });
+  const [showFeedback, setShowFeedback] = useState(false);
+  // Ngẫu nhiên mốc kích hoạt là 5 hoặc 6 câu chat của người dùng
+  const [feedbackThreshold] = useState(() => Math.floor(Math.random() * 2) + 5);
+
+  // Task 594: Khởi tạo session trong LocalStorage
   useEffect(() => {
     let session = localStorage.getItem("chat_session_id");
     if (!session) {
@@ -46,22 +38,35 @@ export default function ChatWidget() {
     }
   }, []);
 
-  // Tự động cuộn xuống dưới cùng (Task 594)
+  // Task 594: Tự động cuộn xuống dưới
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [aiMessages, agentMessages, activeTab]);
+  }, [aiMessages, agentMessages, activeTab, showFeedback]);
+
+  // Kiểm tra điều kiện kích hoạt hộp Like/Dislike (sau 5-6 tin nhắn người dùng)
+  useEffect(() => {
+    if (hasRated) return;
+
+    const userMsgCount = aiMessages.filter((m) => m.sender === "user").length;
+    if (userMsgCount >= feedbackThreshold) {
+      setShowFeedback(true);
+    }
+  }, [aiMessages, hasRated, feedbackThreshold]);
+
+  const handleRating = (type) => {
+    // Lưu vào LocalStorage để không bao giờ hiện lại nữa
+    localStorage.setItem("chat_widget_rated", "true");
+    setHasRated(true);
+    setShowFeedback(false);
+    console.log(`Đánh giá của người dùng: ${type}`);
+  };
 
   const sendMessage = (text) => {
     const content = text.trim();
     if (!content) return;
 
     setHasSentFirstMessage(true);
-
-    const userMsg = {
-      id: Date.now(),
-      sender: "user",
-      text: content,
-    };
+    const userMsg = { id: Date.now(), sender: "user", text: content };
 
     if (activeTab === "ai") {
       setAiMessages((prev) => [...prev, userMsg]);
@@ -109,7 +114,7 @@ export default function ChatWidget() {
         </div>
       </div>
 
-      {/* Danh sách tin nhắn */}
+      {/* Vùng tin nhắn */}
       <div style={styles.messageBody}>
         {activeTab === "agent" && (
           <div style={styles.agentStatusBanner}>
@@ -143,10 +148,34 @@ export default function ChatWidget() {
             </div>
           );
         })}
+
+        {/* Khung đánh giá Like / Dislike */}
+        {showFeedback && (
+          <div style={styles.feedbackContainer}>
+            <span style={styles.feedbackText}>Câu trả lời của chúng tôi có hữu ích không?</span>
+            <div style={styles.feedbackActions}>
+              <button
+                onClick={() => handleRating("like")}
+                style={styles.feedbackBtn}
+                title="Hữu ích"
+              >
+                👍
+              </button>
+              <button
+                onClick={() => handleRating("dislike")}
+                style={styles.feedbackBtn}
+                title="Chưa hữu ích"
+              >
+                👎
+              </button>
+            </div>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Gợi ý dịch vụ: Ghim trên ô nhập liệu, tự ẩn khi đã chat */}
+      {/* Gợi ý câu hỏi: ghim trên ô nhập, tự mất sau khi gửi */}
       {showSuggestions && (
         <div style={styles.suggestionBar}>
           <div style={styles.suggestionTitle}>Gợi ý câu hỏi:</div>
@@ -164,7 +193,7 @@ export default function ChatWidget() {
         </div>
       )}
 
-      {/* Khung nhập tin nhắn */}
+      {/* Footer nhập tin */}
       <div style={styles.footer}>
         <div style={styles.inputWrapper}>
           <textarea
@@ -268,6 +297,33 @@ const styles = {
     fontSize: "14px",
     lineHeight: "1.5",
     wordBreak: "break-word",
+  },
+  feedbackContainer: {
+    backgroundColor: "#F8F9FA",
+    border: "1px dashed #D0D5DD",
+    borderRadius: "14px",
+    padding: "10px 14px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    margin: "12px 0 8px 0",
+  },
+  feedbackText: {
+    fontSize: "12px",
+    color: "#475467",
+  },
+  feedbackActions: {
+    display: "flex",
+    gap: "8px",
+  },
+  feedbackBtn: {
+    background: "#FFFFFF",
+    border: "1px solid #D0D5DD",
+    borderRadius: "8px",
+    padding: "4px 8px",
+    fontSize: "14px",
+    cursor: "pointer",
+    transition: "transform 0.1s ease",
   },
   suggestionBar: {
     padding: "4px 20px 10px",
