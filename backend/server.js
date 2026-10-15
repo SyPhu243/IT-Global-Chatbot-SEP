@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import pool from './db.js';
 import contactRoutes from './routes/contactRoutes.js';
+import sessionRoutes from './routes/sessionRoutes.js';
 import cors from 'cors';
 
 const app = express();
@@ -11,6 +12,7 @@ app.use(cors());
 
 // API lưu thông tin Contact
 app.use("/api/contacts", contactRoutes);
+app.use("/api/sessions", sessionRoutes);
 
 app.get("/api/db-test", async (req, res) => {
     try {
