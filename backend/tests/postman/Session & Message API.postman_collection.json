@@ -1,0 +1,284 @@
+{
+  "info": {
+    "_postman_id": "c600084e-6be5-43f7-b202-108b4a696e1d",
+    "name": "Session & Message API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "35282567"
+  },
+  "item": [
+    {
+      "name": "1. Create Session",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "const id = json.data && json.data.id;",
+              "",
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Response time < 1000ms', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+              "});",
+              "",
+              "pm.test('status is success', function () {",
+              "    pm.expect(json.status).to.eql('success');",
+              "});",
+              "",
+              "pm.test('Session ID is a valid UUID', function () {",
+              "    pm.expect(id, 'session id').to.be.a('string');",
+              "    pm.expect(id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+              "});",
+              "",
+              "// Save session ID for the following requests",
+              "if (id) {",
+              "    pm.collectionVariables.set('sessionId', id);",
+              "    pm.environment.set('sessionId', id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/sessions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "sessions"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2a. Send Message - Success",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Response contains the saved message', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.status).to.eql('success');",
+              "    pm.expect(json.data).to.have.property('id');",
+              "    pm.expect(json.data.session_id).to.eql(pm.collectionVariables.get('sessionId'));",
+              "    pm.expect(json.data.sender).to.eql('user');",
+              "    pm.expect(json.data.content).to.eql('Hello, I need help');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sender\": \"user\",\n  \"content\": \"Hello, I need help\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/messages",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "sessions",
+            "{{sessionId}}",
+            "messages"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2b. Send Message - Missing content (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 400', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test('Response has status error and errors array', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.status).to.eql('error');",
+              "    pm.expect(json.errors).to.be.an('array').that.is.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sender\": \"user\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/messages",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "sessions",
+            "{{sessionId}}",
+            "messages"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2c. Send Message - Missing sender (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 400', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test('Response has status error and errors array', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.status).to.eql('error');",
+              "    pm.expect(json.errors).to.be.an('array').that.is.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"Hello\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/messages",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "sessions",
+            "{{sessionId}}",
+            "messages"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. Get Chat History",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "const messages = json.data;",
+              "",
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('status is success and data is a non-empty array', function () {",
+              "    pm.expect(json.status).to.eql('success');",
+              "    pm.expect(messages).to.be.an('array').that.is.not.empty;",
+              "});",
+              "",
+              "pm.test('Each message has the correct structure', function () {",
+              "    messages.forEach(function (m) {",
+              "        pm.expect(m).to.have.all.keys('id', 'session_id', 'sender', 'content', 'created_at');",
+              "        pm.expect(m.id).to.be.a('number');",
+              "        pm.expect(m.session_id).to.eql(pm.collectionVariables.get('sessionId'));",
+              "        pm.expect(m.sender).to.be.oneOf(['user', 'bot']);",
+              "        pm.expect(m.content).to.be.a('string');",
+              "        pm.expect(new Date(m.created_at).toString()).to.not.eql('Invalid Date');",
+              "    });",
+              "});",
+              "",
+              "pm.test('Messages are ordered by created_at ascending', function () {",
+              "    for (let i = 1; i < messages.length; i++) {",
+              "        pm.expect(new Date(messages[i].created_at).getTime())",
+              "            .to.be.at.least(new Date(messages[i - 1].created_at).getTime());",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/messages",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "sessions",
+            "{{sessionId}}",
+            "messages"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "sessionId",
+      "value": ""
+    }
+  ]
+}
