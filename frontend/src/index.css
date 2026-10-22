@@ -49,3 +49,13 @@
 .tab-content-animate {
   animation: chatFadeSlideUp 0.2s ease-out forwards;
 }
+@keyframes dotFlashing {
+  0% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 0.2; transform: scale(0.8); }
+}
+
+.dot-flashing {
+  animation: dotFlashing 1s infinite ease-in-out;
+  font-size: 10px;
+}
