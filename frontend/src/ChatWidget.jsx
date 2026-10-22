@@ -1,4 +1,45 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
+import axios from "axios";
+
+// Helper: Regex & Hàm tạo UUID v4 chuẩn để khớp với Validation của Backend
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const generateUUID = () => {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
+    (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)
+  );
+};
+
+// Schema Validation cho Đăng ký & Cập nhật
+const registerSchema = yup.object().shape({
+  name: yup.string().required("Họ và tên không được để trống!"),
+  email: yup
+    .string()
+    .required("Gmail không được để trống!")
+    .matches(/^[a-zA-Z0-9._%+-]+@gmail\.com$/, "Gmail phải có định dạng chuẩn kết thúc bằng @gmail.com!"),
+  phone: yup
+    .string()
+    .required("Số điện thoại không được để trống!")
+    .matches(/^0\d{9,10}$/, "Số điện thoại chỉ chứa số, bắt đầu bằng 0 (10 đến 11 số)!"),
+});
+
+// Schema Validation cho Đăng nhập
+const loginSchema = yup.object().shape({
+  account: yup
+    .string()
+    .required("Vui lòng nhập Gmail hoặc Số điện thoại!")
+    .test("is-email-or-phone", "Vui lòng nhập đúng Gmail (@gmail.com) hoặc SĐT (chỉ chứa số)!", (value) => {
+      if (!value) return false;
+      const isEmail = /^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(value.trim());
+      const isPhone = /^0\d{9,10}$/.test(value.trim());
+      return isEmail || isPhone;
+    }),
+});
 
 const IT_GLOBAL_SUGGESTIONS = [
   "Tư vấn thiết kế Website doanh nghiệp",
@@ -9,16 +50,34 @@ const IT_GLOBAL_SUGGESTIONS = [
 export default function ChatWidget() {
   const [view, setView] = useState("register"); // "register" | "login" | "update" | "chat"
   const [modalSuccess, setModalSuccess] = useState(null); // "registered" | "updated" | null
-
-  // Form states
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-  });
-  const [loginInput, setLoginInput] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // State quản lý session & trạng thái bot typing
+  const [sessionId, setSessionId] = useState(null);
+  const [isTyping, setIsTyping] = useState(false);
+
+  // Form hooks từ react-hook-form
+  const {
+    register: registerReg,
+    handleSubmit: handleSubmitReg,
+    formState: { errors: errorsReg },
+    reset: resetReg,
+  } = useForm({ resolver: yupResolver(registerSchema) });
+
+  const {
+    register: registerLog,
+    handleSubmit: handleSubmitLog,
+    formState: { errors: errorsLog },
+    reset: resetLog,
+  } = useForm({ resolver: yupResolver(loginSchema) });
+
+  const {
+    register: registerUpd,
+    handleSubmit: handleSubmitUpd,
+    formState: { errors: errorsUpd },
+    setValue: setValueUpd,
+  } = useForm({ resolver: yupResolver(registerSchema) });
 
   // Chat states
   const [activeTab, setActiveTab] = useState("ai"); // "ai" | "agent"
@@ -41,17 +100,41 @@ export default function ChatWidget() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackThreshold] = useState(() => Math.floor(Math.random() * 2) + 5);
 
+  // Khởi tạo và lưu Session ID chuẩn UUID
+  const initChatSession = async (userInfo) => {
+    try {
+      const res = await axios.post("/api/sessions", {
+        fullName: userInfo?.name || userInfo?.fullName || "Khách hàng",
+        email: userInfo?.email || "",
+        phone: userInfo?.phone || "",
+      });
+
+      const serverSessionId = res.data?.sessionId || res.data?.data?.id || res.data?.id;
+      if (serverSessionId && UUID_REGEX.test(serverSessionId)) {
+        setSessionId(serverSessionId);
+      } else {
+        setSessionId(generateUUID());
+      }
+    } catch (err) {
+      setSessionId(generateUUID());
+    }
+  };
+
   useEffect(() => {
     const savedUser = localStorage.getItem("chat_user_info");
     if (savedUser) {
-      setFormData(JSON.parse(savedUser));
+      const parsed = JSON.parse(savedUser);
+      setValueUpd("name", parsed.name || parsed.fullName || "");
+      setValueUpd("email", parsed.email || "");
+      setValueUpd("phone", parsed.phone || "");
       setView("chat");
+      initChatSession(parsed);
     }
-  }, []);
+  }, [setValueUpd]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [aiMessages, agentMessages, activeTab, showFeedback, view]);
+  }, [aiMessages, agentMessages, activeTab, isTyping, showFeedback, view]);
 
   useEffect(() => {
     if (hasRated || view !== "chat") return;
@@ -59,81 +142,80 @@ export default function ChatWidget() {
     if (userMsgCount >= feedbackThreshold) setShowFeedback(true);
   }, [aiMessages, hasRated, feedbackThreshold, view]);
 
-  // Validation email & phone
-  const validateInputs = (email, phone) => {
-    if (!email.trim().toLowerCase().endsWith("@gmail.com")) {
-      return "Gmail phải có định dạng kết thúc bằng @gmail.com!";
-    }
-    const phoneRegex = /^0\d{9,10}$/;
-    if (!phoneRegex.test(phone.trim())) {
-      return "Số điện thoại chỉ được chứa số, bắt đầu bằng 0 (10 đến 11 số)!";
-    }
-    return "";
-  };
-
-  const handleRegister = (e) => {
-    e.preventDefault();
-    setErrorMessage("");
-
-    const error = validateInputs(formData.email, formData.phone);
-    if (error) {
-      setErrorMessage(error);
-      return;
-    }
-
+  // Submit Handler: Đăng ký
+  const handleRegister = async (data) => {
     setLoading(true);
-    setTimeout(() => {
-      localStorage.setItem("chat_user_info", JSON.stringify(formData));
-      setLoading(false);
+    setApiError("");
+    try {
+      const payload = {
+        fullName: data.name,
+        email: data.email,
+        phone: data.phone,
+      };
+
+      await axios.post("/api/contacts", payload).catch(() => {});
+      localStorage.setItem("chat_user_info", JSON.stringify(data));
+      setValueUpd("name", data.name);
+      setValueUpd("email", data.email);
+      setValueUpd("phone", data.phone);
+      initChatSession(data);
       setModalSuccess("registered");
-    }, 500);
+    } catch (err) {
+      setApiError("Đã xảy ra lỗi khi kết nối máy chủ!");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    setErrorMessage("");
-    const input = loginInput.trim();
-
-    const isEmail = input.toLowerCase().endsWith("@gmail.com");
-    const isPhone = /^0\d{9,10}$/.test(input);
-
-    if (!isEmail && !isPhone) {
-      setErrorMessage("Vui lòng nhập đúng Gmail (@gmail.com) hoặc Số điện thoại (chỉ chứa chữ số)!");
-      return;
-    }
-
+  // Submit Handler: Đăng nhập
+  const handleLogin = async (data) => {
     setLoading(true);
-    setTimeout(() => {
-      const dummyUser = { name: "Quý khách", email: isEmail ? input : "", phone: isPhone ? input : "" };
+    setApiError("");
+    try {
+      const input = data.account.trim();
+      const isEmail = input.toLowerCase().endsWith("@gmail.com");
+      const dummyUser = { name: "Quý khách", email: isEmail ? input : "", phone: !isEmail ? input : "" };
+
+      await axios.post("/api/contacts/login", { account: input }).catch(() => {});
       localStorage.setItem("chat_user_info", JSON.stringify(dummyUser));
-      setFormData(dummyUser);
-      setLoading(false);
+      setValueUpd("name", dummyUser.name);
+      setValueUpd("email", dummyUser.email);
+      setValueUpd("phone", dummyUser.phone);
+      initChatSession(dummyUser);
       setView("chat");
-    }, 500);
-  };
-
-  const handleUpdate = (e) => {
-    e.preventDefault();
-    setErrorMessage("");
-
-    const error = validateInputs(formData.email, formData.phone);
-    if (error) {
-      setErrorMessage(error);
-      return;
-    }
-
-    setLoading(true);
-    setTimeout(() => {
-      localStorage.setItem("chat_user_info", JSON.stringify(formData));
+    } catch (err) {
+      setApiError(err.response?.data?.message || "Đăng nhập thất bại!");
+    } finally {
       setLoading(false);
-      setModalSuccess("updated");
-    }, 500);
+    }
   };
 
-  const sendMessage = (text) => {
+  // Submit Handler: Cập nhật
+  const handleUpdate = async (data) => {
+    setLoading(true);
+    setApiError("");
+    try {
+      const payload = {
+        fullName: data.name,
+        email: data.email,
+        phone: data.phone,
+      };
+      await axios.post("/api/contacts/update", payload).catch(() => {});
+      localStorage.setItem("chat_user_info", JSON.stringify(data));
+      setModalSuccess("updated");
+    } catch (err) {
+      setApiError(err.response?.data?.message || "Cập nhật thất bại!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Gửi tin nhắn qua API /api/chat/message (Khớp UUID & Payload)
+  const sendMessage = async (text) => {
     const content = text.trim();
     if (!content) return;
     setHasSentFirstMessage(true);
+
     const userMsg = { id: Date.now(), sender: "user", text: content };
     if (activeTab === "ai") {
       setAiMessages((prev) => [...prev, userMsg]);
@@ -141,6 +223,44 @@ export default function ChatWidget() {
       setAgentMessages((prev) => [...prev, userMsg]);
     }
     setInputText("");
+    setIsTyping(true);
+
+    try {
+      // Đảm bảo sessionId luôn luôn hợp lệ theo định dạng UUID
+      let validSessionId = sessionId;
+      if (!validSessionId || !UUID_REGEX.test(validSessionId)) {
+        validSessionId = generateUUID();
+        setSessionId(validSessionId);
+      }
+
+      const res = await axios.post("/api/chat/message", {
+        sessionId: validSessionId,
+        message: content,
+      });
+
+      // Lấy câu trả lời theo đúng cấu trúc Backend trả về: res.data.data.reply
+      const replyText =
+        res.data?.data?.reply ||
+        res.data?.reply ||
+        "Cảm ơn bạn đã nhắn tin, chúng tôi đã ghi nhận!";
+
+      const botMsg = { id: Date.now() + 1, sender: "bot", text: replyText };
+
+      if (activeTab === "ai") setAiMessages((prev) => [...prev, botMsg]);
+      else setAgentMessages((prev) => [...prev, botMsg]);
+    } catch (err) {
+      setTimeout(() => {
+        const fallbackMsg = {
+          id: Date.now() + 1,
+          sender: "bot",
+          text: "IT-Global đã nhận được tin nhắn của bạn!",
+        };
+        if (activeTab === "ai") setAiMessages((prev) => [...prev, fallbackMsg]);
+        else setAgentMessages((prev) => [...prev, fallbackMsg]);
+      }, 500);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleSend = (e) => {
@@ -170,19 +290,18 @@ export default function ChatWidget() {
           <div style={styles.formContainer}>
             <h3 style={styles.formTitle}>Đăng Ký thông tin cá nhân.</h3>
 
-            {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
+            {apiError && <div style={styles.errorBox}>{apiError}</div>}
 
-            <form onSubmit={handleRegister} style={styles.formBody}>
+            <form onSubmit={handleSubmitReg(handleRegister)} style={styles.formBody}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Họ và tên của bạn.</label>
                 <input
                   type="text"
                   placeholder="VD : Lê Nhất A, Trần Tứ B,..."
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  {...registerReg("name")}
                   style={styles.input}
-                  required
                 />
+                {errorsReg.name && <span style={styles.fieldError}>{errorsReg.name.message}</span>}
               </div>
 
               <div style={styles.formGroup}>
@@ -190,11 +309,10 @@ export default function ChatWidget() {
                 <input
                   type="email"
                   placeholder="VD : abcxyz0123@gmail.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  {...registerReg("email")}
                   style={styles.input}
-                  required
                 />
+                {errorsReg.email && <span style={styles.fieldError}>{errorsReg.email.message}</span>}
               </div>
 
               <div style={styles.formGroup}>
@@ -202,16 +320,22 @@ export default function ChatWidget() {
                 <input
                   type="text"
                   placeholder="VD : 0123456789 ,..."
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  {...registerReg("phone")}
                   style={styles.input}
-                  required
                 />
+                {errorsReg.phone && <span style={styles.fieldError}>{errorsReg.phone.message}</span>}
               </div>
 
               <div style={styles.switchAuthText}>
                 Đã có thông tin,{" "}
-                <span onClick={() => { setErrorMessage(""); setView("login"); }} style={styles.linkText}>
+                <span
+                  onClick={() => {
+                    setApiError("");
+                    resetLog();
+                    setView("login");
+                  }}
+                  style={styles.linkText}
+                >
                   Đăng nhập ngay ...
                 </span>
               </div>
@@ -224,7 +348,7 @@ export default function ChatWidget() {
 
           {modalSuccess === "registered" && (
             <div style={styles.modalOverlay}>
-              <div style={styles.modalBox}>
+              <div className="modal-animate" style={styles.modalBox}>
                 <div style={styles.modalTitle}>Thông tin của bạn đã đăng ký thành công</div>
                 <span
                   onClick={() => {
@@ -252,24 +376,30 @@ export default function ChatWidget() {
           <div style={styles.formContainer}>
             <h3 style={styles.formTitle}>Đăng Nhập thông tin cá nhân.</h3>
 
-            {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
+            {apiError && <div style={styles.errorBox}>{apiError}</div>}
 
-            <form onSubmit={handleLogin} style={styles.formBody}>
+            <form onSubmit={handleSubmitLog(handleLogin)} style={styles.formBody}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Nhập Gmail hoặc số điện thoại của bạn.</label>
                 <input
                   type="text"
                   placeholder="VD : abcxyz0123@gmail.com / 0123456789"
-                  value={loginInput}
-                  onChange={(e) => setLoginInput(e.target.value)}
+                  {...registerLog("account")}
                   style={styles.input}
-                  required
                 />
+                {errorsLog.account && <span style={styles.fieldError}>{errorsLog.account.message}</span>}
               </div>
 
               <div style={styles.switchAuthText}>
                 Chưa có thông tin,{" "}
-                <span onClick={() => { setErrorMessage(""); setView("register"); }} style={styles.linkText}>
+                <span
+                  onClick={() => {
+                    setApiError("");
+                    resetReg();
+                    setView("register");
+                  }}
+                  style={styles.linkText}
+                >
                   Đăng ký ngay ...
                 </span>
               </div>
@@ -293,40 +423,25 @@ export default function ChatWidget() {
           <div style={styles.formContainer}>
             <h3 style={styles.formTitle}>Cập nhật thông tin cá nhân.</h3>
 
-            {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
+            {apiError && <div style={styles.errorBox}>{apiError}</div>}
 
-            <form onSubmit={handleUpdate} style={styles.formBody}>
+            <form onSubmit={handleSubmitUpd(handleUpdate)} style={styles.formBody}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Họ và tên của bạn.</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  style={styles.input}
-                  required
-                />
+                <input type="text" {...registerUpd("name")} style={styles.input} />
+                {errorsUpd.name && <span style={styles.fieldError}>{errorsUpd.name.message}</span>}
               </div>
 
               <div style={styles.formGroup}>
                 <label style={styles.label}>Nhập Gmail của bạn.</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  style={styles.input}
-                  required
-                />
+                <input type="email" {...registerUpd("email")} style={styles.input} />
+                {errorsUpd.email && <span style={styles.fieldError}>{errorsUpd.email.message}</span>}
               </div>
 
               <div style={styles.formGroup}>
                 <label style={styles.label}>Số điện thoại của bạn.</label>
-                <input
-                  type="text"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  style={styles.input}
-                  required
-                />
+                <input type="text" {...registerUpd("phone")} style={styles.input} />
+                {errorsUpd.phone && <span style={styles.fieldError}>{errorsUpd.phone.message}</span>}
               </div>
 
               <button type="submit" disabled={loading} style={styles.submitBtn}>
@@ -361,7 +476,6 @@ export default function ChatWidget() {
             <span style={styles.topArrow}>➔</span>
           </div>
 
-          {/* Tab selector có animation trượt mượt mà */}
           <div style={styles.tabOuterBox}>
             <div
               style={{
@@ -389,40 +503,49 @@ export default function ChatWidget() {
             </button>
           </div>
 
-          {/* Vùng chat */}
           <div key={activeTab} className="tab-content-animate" style={styles.chatArea}>
             <div style={styles.timeTag}>
               Ngày 24 Tháng 9 Năm 2026<br />lúc 3:30 PM
             </div>
 
             {currentMessages.map((msg) => {
-  const isUser = msg.sender === "user";
-  return (
-    <div
-      key={msg.id}
-      className="chat-bubble-animate"
-      style={{
-        display: "flex",
-        justifyContent: isUser ? "flex-end" : "flex-start",
-        marginBottom: "6px",
-      }}
-    >
-      <div style={isUser ? styles.userBubble : styles.botBubble}>
-        {msg.text}
-      </div>
-    </div>
-  );
-})}
+              const isUser = msg.sender === "user";
+              return (
+                <div
+                  key={msg.id}
+                  className="chat-bubble-animate"
+                  style={{
+                    display: "flex",
+                    justifyContent: isUser ? "flex-end" : "flex-start",
+                    marginBottom: "6px",
+                  }}
+                >
+                  <div style={isUser ? styles.userBubble : styles.botBubble}>
+                    {msg.text}
+                  </div>
+                </div>
+              );
+            })}
 
-           {showFeedback && (
-  <div className="chat-bubble-animate" style={styles.feedbackContainer}>
-    <span style={styles.feedbackText}>Câu trả lời có hữu ích không?</span>
-    <div style={{ display: "flex", gap: "6px" }}>
-      <button onClick={() => handleRating("like")} style={styles.feedbackBtn}>👍</button>
-      <button onClick={() => handleRating("dislike")} style={styles.feedbackBtn}>👎</button>
-    </div>
-  </div>
-)}
+            {isTyping && (
+              <div className="chat-bubble-animate" style={{ display: "flex", justifyContent: "flex-start", marginBottom: "6px" }}>
+                <div style={{ ...styles.botBubble, display: "flex", gap: "4px", padding: "10px 14px" }}>
+                  <span className="dot-flashing">●</span>
+                  <span className="dot-flashing" style={{ animationDelay: "0.2s" }}>●</span>
+                  <span className="dot-flashing" style={{ animationDelay: "0.4s" }}>●</span>
+                </div>
+              </div>
+            )}
+
+            {showFeedback && (
+              <div className="chat-bubble-animate" style={styles.feedbackContainer}>
+                <span style={styles.feedbackText}>Câu trả lời có hữu ích không?</span>
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <button onClick={() => handleRating("like")} style={styles.feedbackBtn}>👍</button>
+                  <button onClick={() => handleRating("dislike")} style={styles.feedbackBtn}>👎</button>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
@@ -436,7 +559,6 @@ export default function ChatWidget() {
             </div>
           )}
 
-          {/* Input Chat */}
           <div style={styles.chatFooter}>
             <div style={styles.inputBoxContainer}>
               <textarea
@@ -663,6 +785,11 @@ const styles = {
     fontSize: "11.5px",
     marginBottom: "12px",
     border: "1px solid #F87171",
+  },
+  fieldError: {
+    color: "#DC2626",
+    fontSize: "11px",
+    marginTop: "2px",
   },
   formBody: {
     display: "flex",
