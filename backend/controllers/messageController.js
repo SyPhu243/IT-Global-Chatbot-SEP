@@ -1,5 +1,10 @@
 import { findSessionById } from "../models/sessionModel.js";
-import { createMessage, getMessagesBySession } from "../models/messageModel.js";
+import {
+    createMessage,
+    getMessagesBySession,
+    findMessageById,
+    updateMessageRating,
+} from "../models/messageModel.js";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ALLOWED_SENDERS = ["user", "bot"];
@@ -78,5 +83,70 @@ export async function getHistory(req, res) {
     } catch (error) {
         console.error("Lỗi lấy lịch sử chat:", error.message);
         return res.status(500).json({ status: "error", message: "Lỗi server" });
+    }
+}
+
+export async function rateMessage(req, res) {
+    const { id } = req.params;
+    const { rating } = req.body ?? {};
+
+    // Kiểm tra ID tin nhắn hợp lệ
+    if (!/^[1-9]\d*$/.test(id) ||
+        !Number.isSafeInteger(Number(id))) {
+        return res.status(400).json({
+            status: "error",
+            message: "ID tin nhắn không hợp lệ",
+        });
+    }
+
+    // Rating chỉ được nhận 1 hoặc -1
+    if (rating !== 1 && rating !== -1) {
+        return res.status(400).json({
+            status: "error",
+            message: "Rating chỉ được là 1 hoặc -1",
+        });
+    }
+
+    try {
+        // Kiểm tra tin nhắn có tồn tại không
+        const message = await findMessageById(id);
+
+        if (!message) {
+            return res.status(404).json({
+                status: "error",
+                message: "Không tìm thấy tin nhắn",
+            });
+        }
+
+        // Chỉ cho phép đánh giá tin nhắn của Bot
+        if (message.sender !== "bot") {
+            return res.status(400).json({
+                status: "error",
+                message: "Chỉ được đánh giá tin nhắn của Bot",
+            });
+        }
+
+        // Cập nhật rating vào database
+        const updatedMessage = await updateMessageRating(id, rating);
+
+        if (!updatedMessage) {
+            return res.status(409).json({
+                status: "error",
+                message: "Không thể cập nhật đánh giá",
+            });
+        }
+
+        return res.status(200).json({
+            status: "success",
+            message: "Đánh giá tin nhắn thành công",
+            data: updatedMessage,
+        });
+    } catch (error) {
+        console.error("Lỗi đánh giá tin nhắn:", error.message);
+
+        return res.status(500).json({
+            status: "error",
+            message: "Lỗi server",
+        });
     }
 }
