@@ -4,6 +4,7 @@ import pool from './db.js';
 import contactRoutes from './routes/contactRoutes.js';
 import sessionRoutes from './routes/sessionRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
+import messageRatingRoutes from "./routes/messageRatingRoutes.js";
 import cors from 'cors';
 
 const app = express();
@@ -15,7 +16,7 @@ app.use(cors());
 app.use("/api/contacts", contactRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/chat", chatRoutes);
-
+app.use("/api/messages", messageRatingRoutes);
 app.get("/api/db-test", async (req, res) => {
     try {
         const result = await pool.query("SELECT NOW() AS current_time");

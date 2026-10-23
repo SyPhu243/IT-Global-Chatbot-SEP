@@ -20,3 +20,26 @@ export async function getMessagesBySession(sessionId) {
     );
     return rows;
 }
+
+export async function findMessageById(id) {
+    const { rows } = await pool.query(
+        `SELECT id, sender, rating
+         FROM messages
+         WHERE id = $1`,
+        [id]
+    );
+
+    return rows[0] ?? null;
+}
+
+export async function updateMessageRating(id, rating) {
+    const { rows } = await pool.query(
+        `UPDATE messages
+         SET rating = $1
+         WHERE id = $2 AND sender = 'bot'
+         RETURNING id, session_id, sender, rating`,
+        [rating, id]
+    );
+
+    return rows[0] ?? null;
+}
