@@ -1,3 +1,4 @@
+
 services:
   app:
     build: ./backend
@@ -30,6 +31,22 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # Cronjob trích xuất dữ liệu thô
+  extractor:
+    build: ./backend
+    command: ["node", "scripts/extractionCron.js"]
+    environment:
+      NODE_ENV: development
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres_data:
