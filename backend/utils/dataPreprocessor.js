@@ -2,10 +2,38 @@ import { chunkText } from './textProcessor.js';
 
 const cleanData = (rawString) => {
     if (!rawString) return "";
-    // Xóa thẻ HTML
+    
+    // 1. Xóa thẻ HTML
     let cleanedString = rawString.replace(/<[^>]*>?/gm, '');
-    // Giữ lại chữ cái Unicode (tiếng Việt), số, khoảng trắng và dấu câu cơ bản
-    cleanedString = cleanedString.replace(/[^\p{L}\p{N}\s.,!?\-]/gu, '').replace(/\s+/g, ' ').trim();
+    
+    // 2. GIẢI PHÁP MASKING CÓ CHỌN LỌC (WHITELIST)
+    // Danh sách thông tin chính thức của IT-Global (Tuyệt đối không che)
+    const itGlobalPhones = ["+84 987.613.161", "0987613161", "+84987613161"]; // Khai báo nhiều định dạng phòng hờ
+    const itGlobalEmails = ["info@it-global.net"];
+
+    // Masking SĐT: Quét các số bắt đầu bằng 0 hoặc +84, có chứa dấu chấm hoặc khoảng trắng
+    cleanedString = cleanedString.replace(/(?:\+84|0)[-\s.]?\d{3}[-\s.]?\d{3}[-\s.]?\d{3,4}\b/g, (match) => {
+        // Làm sạch khoảng trắng/dấu chấm của chuỗi vừa tìm được để so sánh cho chắc chắn
+        const normalizedMatch = match.replace(/[-\s.]/g, ''); 
+        const normalizedWhitelist = itGlobalPhones.map(phone => phone.replace(/[-\s.]/g, ''));
+        
+        if (normalizedWhitelist.includes(normalizedMatch)) {
+            return match; // Nếu đúng số IT Global -> Giữ nguyên
+        }
+        return "[SĐT KHÁCH HÀNG ĐÃ ẨN]"; // Số lạ -> Che đi
+    });
+
+    // Masking Email: Quét tất cả định dạng email
+    cleanedString = cleanedString.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, (match) => {
+        if (itGlobalEmails.includes(match.toLowerCase())) {
+            return match; // Nếu đúng email IT Global -> Giữ nguyên
+        }
+        return "[EMAIL ĐÃ ẨN]"; // Email lạ -> Che đi
+    });
+
+    // 3. Giữ lại chữ cái Unicode (tiếng Việt), số, khoảng trắng và các dấu câu cơ bản
+    cleanedString = cleanedString.replace(/[^\p{L}\p{N}\s.,!?\-@\[\]+]/gu, '').replace(/\s+/g, ' ').trim();
+    
     return cleanedString;
 };
 
