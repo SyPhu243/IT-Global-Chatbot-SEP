@@ -1,4 +1,3 @@
-
 import "dotenv/config";
 import cron from "node-cron";
 import pool from "../db.js";
