@@ -28,30 +28,12 @@ const chunkText = (text, maxChunkSize = 500, overlap = 50) => {
 
 const getEmbedding = async (textChunk) => {
     try {
-        const apiKey = process.env.GEMINI_API_KEY;
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${apiKey}`;
-        
-        const response = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                content: {
-                    parts: [{ text: textChunk }]
-                }
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`API Error: ${JSON.stringify(errorData)}`);
-        }
-
-        const data = await response.json();
-        return data.embedding.values;
+        const embedModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
+        const result = await embedModel.embedContent(textChunk);
+        const vector = result.embedding.values.slice(0, 768);
+        return vector; 
     } catch (error) {
-        console.error("Lỗi lấy Embedding qua REST API:", error);
+        console.error("Lỗi lấy Embedding qua SDK:", error);
         throw error;
     }
 };
