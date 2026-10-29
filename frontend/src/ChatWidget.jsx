@@ -15,6 +15,22 @@ const generateUUID = () => {
   );
 };
 
+// Helper: Lấy thời gian thực hiện tại khi bắt đầu chat
+const getFormattedDateTime = () => {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("vi-VN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const timeStr = now.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${dateStr}\nlúc ${timeStr}`;
+};
+
 // Schema Validation cho Đăng ký & Cập nhật
 const registerSchema = yup.object().shape({
   name: yup.string().required("Họ và tên không được để trống!"),
@@ -52,6 +68,9 @@ export default function ChatWidget() {
   const [modalSuccess, setModalSuccess] = useState(null); // "registered" | "updated" | null
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // State lưu thời gian thực bắt đầu phiên chat
+  const [chatStartTime] = useState(() => getFormattedDateTime());
 
   // State quản lý session & trạng thái bot typing
   const [sessionId, setSessionId] = useState(null);
@@ -505,7 +524,12 @@ export default function ChatWidget() {
 
           <div key={activeTab} className="tab-content-animate" style={styles.chatArea}>
             <div style={styles.timeTag}>
-              Ngày 24 Tháng 9 Năm 2026<br />lúc 3:30 PM
+              {chatStartTime.split("\n").map((line, i) => (
+                <React.Fragment key={i}>
+                  {line}
+                  {i === 0 && <br />}
+                </React.Fragment>
+              ))}
             </div>
 
             {currentMessages.map((msg) => {
@@ -592,6 +616,10 @@ export default function ChatWidget() {
 
 const styles = {
   card: {
+    position: "fixed",
+    bottom: "20px",
+    right: "20px",
+    zIndex: 999999,
     width: "360px",
     height: "620px",
     backgroundColor: "#FAFAFA",
@@ -602,7 +630,6 @@ const styles = {
     flexDirection: "column",
     overflow: "hidden",
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    position: "relative",
     boxSizing: "border-box",
   },
   topHeader: {
