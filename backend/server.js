@@ -1,3 +1,4 @@
+
 import 'dotenv/config';
 import express from 'express';
 import pool from './db.js';
@@ -7,7 +8,7 @@ import chatRoutes from './routes/chatRoutes.js';
 import messageRatingRoutes from "./routes/messageRatingRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import { verifyToken } from "./middlewares/verifyToken.js";
-import cors from 'cors';
+import { errorHandler } from "./middlewares/errorHandler.js";
 
 const app = express();
 
@@ -16,10 +17,10 @@ const app = express();
 // ==========================================
 // Danh sách các Domain được phép gọi API
 const whitelist = [
-    'http://localhost:3000',      // React chạy local
-    'http://localhost:5173',      // Vite chạy local
+    'http://localhost:3000',       // React chạy local
+    'http://localhost:5173',       // Vite chạy local
     'https://staging.it-global.vn', // Môi trường Staging (Thử nghiệm)
-    'https://it-global.vn'        // Môi trường Production
+    'https://it-global.vn'         // Môi trường Production
 ];
 
 const corsOptions = {
@@ -31,7 +32,7 @@ const corsOptions = {
             callback(new Error(`CORS Policy: Domain [${origin}] không được phép truy cập API này!`));
         }
     },
-    methods: ['GET', 'POST', 'PUT', 'DELETE'], 
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true // Cho phép gửi Cookie chứa JWT
 };
 
@@ -66,14 +67,27 @@ app.get("/api/db-test", async (req, res) => {
             data: result.rows[0]
         });
     } catch (error) {
-        console.error("Loi ket noi PostgreSQL:", error.message);
+        //Ghi log chi tiết để debug Backend
+        console.error("[DB-TEST] Database connection failed", {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString()
+        });
 
-        res.status(500).json({
+        return res.status(500).json({
             status: "error",
             message: "Khong the ket noi PostgreSQL"
         });
     }
 });
+
+// ==========================================
+// GLOBAL ERROR HANDLER
+// ==========================================
+
+app.use(errorHandler);
+
 const PORT = 5000;
 
 app.listen(PORT, () => {
