@@ -773,6 +773,8 @@ const styles = {
     fontSize: "13px",
     lineHeight: "1.35",
     maxWidth: "80%",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
     boxShadow: "0 1px 3px rgba(25,118,210,0.12)",
   },
   userBubble: {
@@ -784,6 +786,8 @@ const styles = {
     fontSize: "13px",
     lineHeight: "1.35",
     maxWidth: "80%",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
   },
   suggestionBar: {
     padding: "4px 18px 8px",

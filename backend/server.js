@@ -1,6 +1,6 @@
-
 import 'dotenv/config';
 import express from 'express';
+import cors from 'cors';
 import pool from './db.js';
 import contactRoutes from './routes/contactRoutes.js';
 import sessionRoutes from './routes/sessionRoutes.js';
