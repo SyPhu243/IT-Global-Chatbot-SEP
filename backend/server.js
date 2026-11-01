@@ -5,6 +5,8 @@ import contactRoutes from './routes/contactRoutes.js';
 import sessionRoutes from './routes/sessionRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import messageRatingRoutes from "./routes/messageRatingRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import { verifyToken } from "./middlewares/verifyToken.js";
 import cors from 'cors';
 
 const app = express();
@@ -38,6 +40,14 @@ app.use(cors(corsOptions));
 // ==========================================
 
 app.use(express.json());
+app.use("/api/auth", authRoutes);
+
+app.get("/api/auth/me", verifyToken, (req, res) => {
+    return res.json({
+        success: true,
+        user: req.user,
+    });
+});
 
 // Các API chính
 app.use("/api/contacts", contactRoutes);
