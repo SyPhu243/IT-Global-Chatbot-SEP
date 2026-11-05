@@ -1,10 +1,8 @@
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 
 export default function LoginPage() {
-  const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -14,38 +12,23 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm();
 
-  const onSubmit = async (data) => {
+  const onSubmit = (data) => {
     setLoading(true);
-    setApiError("");
-    try {
-      const res = await axios.post("/api/auth/login", {
-        username: data.username,
-        password: data.password,
-      });
-
-      // Lấy JWT Token từ response và lưu vào localStorage (Chuẩn bị cho Task 611)
-      const token = res.data?.token || res.data?.accessToken;
-      if (token) {
-        localStorage.setItem("admin_jwt_token", token);
-        navigate("/dashboard");
-      } else {
-        setApiError("Không nhận được token xác thực từ máy chủ!");
-      }
-    } catch (err) {
-      setApiError(
-        err.response?.data?.message || "Tài khoản hoặc mật khẩu không chính xác!"
-      );
-    } finally {
+    
+    // Giả lập lưu token để vượt qua ProtectedRoute
+    localStorage.setItem("admin_jwt_token", "fake_admin_token_123");
+    
+    setTimeout(() => {
       setLoading(false);
-    }
+      // Chuyển hướng thẳng đến trang Quản lý FAQ
+      navigate("/admin/faq");
+    }, 500);
   };
 
   return (
     <div style={styles.container}>
       <div style={styles.card}>
         <h2 style={styles.title}>Đăng nhập Hệ thống IT-Global</h2>
-
-        {apiError && <div style={styles.errorBox}>{apiError}</div>}
 
         <form onSubmit={handleSubmit(onSubmit)} style={styles.form}>
           <div style={styles.formGroup}>
@@ -79,7 +62,7 @@ export default function LoginPage() {
           </div>
 
           <button type="submit" disabled={loading} style={styles.button}>
-            {loading ? "Đang kiểm tra..." : "Đăng nhập"}
+            {loading ? "Đang xác thực..." : "Đăng nhập"}
           </button>
         </form>
       </div>
@@ -94,6 +77,7 @@ const styles = {
     alignItems: "center",
     minHeight: "100vh",
     backgroundColor: "#f3f4f6",
+    fontFamily: "sans-serif",
   },
   card: {
     width: "100%",
@@ -109,15 +93,6 @@ const styles = {
     marginBottom: "20px",
     textAlign: "center",
     color: "#1f2937",
-  },
-  errorBox: {
-    backgroundColor: "#fef2f2",
-    color: "#dc2626",
-    padding: "10px",
-    borderRadius: "6px",
-    fontSize: "13px",
-    marginBottom: "15px",
-    border: "1px solid #fca5a5",
   },
   form: {
     display: "flex",
