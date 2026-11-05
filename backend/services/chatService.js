@@ -15,18 +15,13 @@ const pool = new Pool({
 });
 
 const MODEL_NAME = "gemini-flash-latest";
-// 🚀 TỐI ƯU 1: Giảm lịch sử chat xuống 4 để request gửi qua mạng nhẹ hơn
 const MAX_HISTORY = 4; 
 const FALLBACK_REPLY = "Xin lỗi, hệ thống đang bận. Vui lòng thử lại sau.";
 let model = null;
 let cachedVectorDB = null;
 
-// 🚀 TỐI ƯU 2: BỘ NHỚ ĐỆM FAQ (FAQ CACHE)
-// Lưu các câu trả lời đã tạo. Hỏi lại câu cũ -> Trả về ngay lập tức (0 giây)
 const faqCache = new Map(); 
 
-// 🛡️ TÍNH NĂNG BẢO MẬT: DATA MASKING (Theo yêu cầu đồ án)
-// Che giấu số điện thoại và email của khách hàng trước khi gửi cho Google
 function maskSensitiveData(text) {
     if (!text) return "";
     let masked = text.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, "[EMAIL_BỊ_ẨN]");
@@ -69,7 +64,7 @@ function getModel() {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("Thieu bien moi truong GEMINI_API_KEY");
     const genAI = new GoogleGenerativeAI(apiKey);
-    const SYSTEM_PROMPT = "Bạn là trợ lý ảo hỗ trợ khách hàng của IT Global. Trả lời ngắn gọn, lịch sự. HÃY DỰA VÀO NGỮ CẢNH SAU ĐÂY ĐỂ TRẢ LỜI. Tuyệt đối không tự bịa thông tin. Nếu user đưa thông tin cá nhân (đã bị ẩn), hãy ghi nhận và bảo họ đợi liên hệ.";
+    const SYSTEM_PROMPT = "Bạn là trợ lý ảo hỗ trợ khách hàng của IT Global. Trả lời ngắn gọn, lịch sự. HÃY DỰA VÀO NGỮ CẢNH SAU ĐÂY ĐỂ TRẢ LỜI. Tuyệt đối không tự bịa thông tin. Nếu user đưa thông tin cá nhân (đã bị ẩn), hãy ghi nhận và bảo họ đợi liên hệ. Hãy trả lời bằng văn bản thuần túy, không sử dụng Markdown (như các dấu hoa thị để in đậm). Các danh sách phải được xuống dòng rõ ràng.";
     model = genAI.getGenerativeModel({ model: MODEL_NAME, systemInstruction: SYSTEM_PROMPT });
     return model;
 }
@@ -82,7 +77,6 @@ function buildHistory(rows) {
 
     for (const row of recentRows) {
         const role = row.sender === "bot" ? "model" : "user";
-        // Áp dụng Masking cho lịch sử chat
         const content = maskSensitiveData(row.content.trim());
         const last = history[history.length - 1];
         if (last && last.role === role) {
@@ -100,16 +94,13 @@ export async function generateBotReply(userMessage, historyRows = []) {
     try {
         const normalizedMsg = userMessage.toLowerCase().trim();
         
-        // 🚀 BƯỚC 1: KIỂM TRA FAQ CACHE TRƯỚC TIÊN
         if (faqCache.has(normalizedMsg)) {
             console.log("⚡ [FAQ CACHE] Phản hồi ngay lập tức, không cần gọi Google API!");
             return faqCache.get(normalizedMsg);
         }
 
-        // 🛡️ BƯỚC 2: MASKING DỮ LIỆU CÁ NHÂN (Ẩn email, SĐT trước khi đẩy đi)
         const safeUserMessage = maskSensitiveData(userMessage);
 
-        // 🚀 BƯỚC 3: TÌM KIẾM VECTOR RAM (RAG)
         let context = "";
         try {
             console.time("⏱️ Thời gian tạo Vector");
@@ -128,7 +119,6 @@ export async function generateBotReply(userMessage, historyRows = []) {
             ? `Dựa vào thông tin sau của công ty IT-Global:\n[${context}]\n\nHãy trả lời câu hỏi: ${safeUserMessage}`
             : safeUserMessage;
 
-        // 🚀 BƯỚC 4: GỌI GOOGLE API
         const gemini = getModel();
         const chat = gemini.startChat({ history: buildHistory(historyRows) });
         
@@ -136,10 +126,15 @@ export async function generateBotReply(userMessage, historyRows = []) {
         const result = await chat.sendMessage(promptWithContext);
         console.timeEnd("⏱️ Thời gian Gemini rep");
 
-        const text = result.response?.text ? result.response.text() : "";
-        const cleanText = typeof text === "string" ? text.trim() : "";
+        let text = result.response?.text ? result.response.text() : "";
         
-        // Lưu câu trả lời thành công vào CACHE để lần sau dùng lại
+        // Cạo sạch toàn bộ dấu * (cả in đậm lẫn bullet point)
+        if (typeof text === "string") {
+            text = text.replace(/\*/g, ""); 
+        }
+
+        const cleanText = text.trim();
+        
         if (cleanText && cleanText !== FALLBACK_REPLY) {
             faqCache.set(normalizedMsg, cleanText);
         }
