@@ -15,6 +15,22 @@ const generateUUID = () => {
   );
 };
 
+// Helper: Lấy thời gian thực hiện tại khi bắt đầu chat
+const getFormattedDateTime = () => {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("vi-VN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const timeStr = now.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${dateStr}\nlúc ${timeStr}`;
+};
+
 // Schema Validation cho Đăng ký & Cập nhật
 const registerSchema = yup.object().shape({
   name: yup.string().required("Họ và tên không được để trống!"),
@@ -48,10 +64,14 @@ const IT_GLOBAL_SUGGESTIONS = [
 ];
 
 export default function ChatWidget() {
+  const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState("register"); // "register" | "login" | "update" | "chat"
   const [modalSuccess, setModalSuccess] = useState(null); // "registered" | "updated" | null
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // State lưu thời gian thực bắt đầu phiên chat
+  const [chatStartTime] = useState(() => getFormattedDateTime());
 
   // State quản lý session & trạng thái bot typing
   const [sessionId, setSessionId] = useState(null);
@@ -133,8 +153,10 @@ export default function ChatWidget() {
   }, [setValueUpd]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [aiMessages, agentMessages, activeTab, isTyping, showFeedback, view]);
+    if (isOpen) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [aiMessages, agentMessages, activeTab, isTyping, showFeedback, view, isOpen]);
 
   useEffect(() => {
     if (hasRated || view !== "chat") return;
@@ -210,7 +232,7 @@ export default function ChatWidget() {
     }
   };
 
-  // Gửi tin nhắn qua API /api/chat/message (Khớp UUID & Payload)
+  // Gửi tin nhắn qua API /api/chat/message
   const sendMessage = async (text) => {
     const content = text.trim();
     if (!content) return;
@@ -226,7 +248,6 @@ export default function ChatWidget() {
     setIsTyping(true);
 
     try {
-      // Đảm bảo sessionId luôn luôn hợp lệ theo định dạng UUID
       let validSessionId = sessionId;
       if (!validSessionId || !UUID_REGEX.test(validSessionId)) {
         validSessionId = generateUUID();
@@ -238,7 +259,6 @@ export default function ChatWidget() {
         message: content,
       });
 
-      // Lấy câu trả lời theo đúng cấu trúc Backend trả về: res.data.data.reply
       const replyText =
         res.data?.data?.reply ||
         res.data?.reply ||
@@ -278,345 +298,427 @@ export default function ChatWidget() {
   const showSuggestions = activeTab === "ai" && !hasSentFirstMessage;
 
   return (
-    <div style={styles.card}>
-      {/* ===================== VIEW: ĐĂNG KÝ ===================== */}
-      {view === "register" && (
-        <div key="register" className="view-animate" style={styles.formWrapper}>
-          <div style={styles.topNoticeBanner}>
-            <span>Vui lòng để lại thông tin để chúng tôi có thể hỗ trợ bạn tốt nhất!</span>
-            <span style={styles.topArrow}>➔</span>
-          </div>
+    <>
+      {/* 1. NÚT LAUNCHER HÌNH TRÒN */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          ...styles.launcherBtn,
+          transform: isOpen ? "scale(0.88) rotate(90deg)" : "scale(1) rotate(0deg)",
+        }}
+        title={isOpen ? "Thu nhỏ chat" : "Mở Chatbot hỗ trợ"}
+      >
+        {isOpen ? (
+          <span style={{ fontSize: "22px", color: "#FFFFFF", fontWeight: "bold" }}>✕</span>
+        ) : (
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#FFFFFF"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+        )}
+      </button>
 
-          <div style={styles.formContainer}>
-            <h3 style={styles.formTitle}>Đăng Ký thông tin cá nhân.</h3>
+      {/* 2. KHUNG CHAT POP-UP */}
+      <div
+        style={{
+          ...styles.card,
+          opacity: isOpen ? 1 : 0,
+          transform: isOpen
+            ? "translateY(0) scale(1)"
+            : "translateY(24px) scale(0.92)",
+          pointerEvents: isOpen ? "auto" : "none",
+        }}
+      >
+        {/* Nút đóng khung chat (✕) nằm ở BÊN PHẢI */}
+        <button
+          onClick={() => setIsOpen(false)}
+          style={styles.closeBtnRight}
+          title="Đóng khung chat"
+        >
+          ✕
+        </button>
 
-            {apiError && <div style={styles.errorBox}>{apiError}</div>}
-
-            <form onSubmit={handleSubmitReg(handleRegister)} style={styles.formBody}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Họ và tên của bạn.</label>
-                <input
-                  type="text"
-                  placeholder="VD : Lê Nhất A, Trần Tứ B,..."
-                  {...registerReg("name")}
-                  style={styles.input}
-                />
-                {errorsReg.name && <span style={styles.fieldError}>{errorsReg.name.message}</span>}
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Nhập Gmail của bạn.</label>
-                <input
-                  type="email"
-                  placeholder="VD : abcxyz0123@gmail.com"
-                  {...registerReg("email")}
-                  style={styles.input}
-                />
-                {errorsReg.email && <span style={styles.fieldError}>{errorsReg.email.message}</span>}
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Số điện thoại của bạn.</label>
-                <input
-                  type="text"
-                  placeholder="VD : 0123456789 ,..."
-                  {...registerReg("phone")}
-                  style={styles.input}
-                />
-                {errorsReg.phone && <span style={styles.fieldError}>{errorsReg.phone.message}</span>}
-              </div>
-
-              <div style={styles.switchAuthText}>
-                Đã có thông tin,{" "}
-                <span
-                  onClick={() => {
-                    setApiError("");
-                    resetLog();
-                    setView("login");
-                  }}
-                  style={styles.linkText}
-                >
-                  Đăng nhập ngay ...
-                </span>
-              </div>
-
-              <button type="submit" disabled={loading} style={styles.submitBtn}>
-                {loading ? "Đang xử lý..." : "Đăng ký"}
-              </button>
-            </form>
-          </div>
-
-          {modalSuccess === "registered" && (
-            <div style={styles.modalOverlay}>
-              <div className="modal-animate" style={styles.modalBox}>
-                <div style={styles.modalTitle}>Thông tin của bạn đã đăng ký thành công</div>
-                <span
-                  onClick={() => {
-                    setModalSuccess(null);
-                    setView("chat");
-                  }}
-                  style={styles.modalActionLink}
-                >
-                  Ấn vào đây để bắt đầu chat
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ===================== VIEW: ĐĂNG NHẬP ===================== */}
-      {view === "login" && (
-        <div key="login" className="view-animate" style={styles.formWrapper}>
-          <div style={styles.topNoticeBanner}>
-            <span>Vui lòng để lại thông tin để chúng tôi có thể hỗ trợ bạn tốt nhất!</span>
-            <span style={styles.topArrow}>➔</span>
-          </div>
-
-          <div style={styles.formContainer}>
-            <h3 style={styles.formTitle}>Đăng Nhập thông tin cá nhân.</h3>
-
-            {apiError && <div style={styles.errorBox}>{apiError}</div>}
-
-            <form onSubmit={handleSubmitLog(handleLogin)} style={styles.formBody}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Nhập Gmail hoặc số điện thoại của bạn.</label>
-                <input
-                  type="text"
-                  placeholder="VD : abcxyz0123@gmail.com / 0123456789"
-                  {...registerLog("account")}
-                  style={styles.input}
-                />
-                {errorsLog.account && <span style={styles.fieldError}>{errorsLog.account.message}</span>}
-              </div>
-
-              <div style={styles.switchAuthText}>
-                Chưa có thông tin,{" "}
-                <span
-                  onClick={() => {
-                    setApiError("");
-                    resetReg();
-                    setView("register");
-                  }}
-                  style={styles.linkText}
-                >
-                  Đăng ký ngay ...
-                </span>
-              </div>
-
-              <button type="submit" disabled={loading} style={styles.submitBtn}>
-                {loading ? "Đang kiểm tra..." : "Đăng nhập"}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ===================== VIEW: CẬP NHẬT ===================== */}
-      {view === "update" && (
-        <div key="update" className="view-animate" style={styles.formWrapper}>
-          <div style={styles.topNoticeBanner}>
-            <span>Vui lòng để lại thông tin để chúng tôi có thể hỗ trợ bạn tốt nhất!</span>
-            <span onClick={() => setView("chat")} style={{ ...styles.topArrow, cursor: "pointer" }}>✕</span>
-          </div>
-
-          <div style={styles.formContainer}>
-            <h3 style={styles.formTitle}>Cập nhật thông tin cá nhân.</h3>
-
-            {apiError && <div style={styles.errorBox}>{apiError}</div>}
-
-            <form onSubmit={handleSubmitUpd(handleUpdate)} style={styles.formBody}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Họ và tên của bạn.</label>
-                <input type="text" {...registerUpd("name")} style={styles.input} />
-                {errorsUpd.name && <span style={styles.fieldError}>{errorsUpd.name.message}</span>}
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Nhập Gmail của bạn.</label>
-                <input type="email" {...registerUpd("email")} style={styles.input} />
-                {errorsUpd.email && <span style={styles.fieldError}>{errorsUpd.email.message}</span>}
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Số điện thoại của bạn.</label>
-                <input type="text" {...registerUpd("phone")} style={styles.input} />
-                {errorsUpd.phone && <span style={styles.fieldError}>{errorsUpd.phone.message}</span>}
-              </div>
-
-              <button type="submit" disabled={loading} style={styles.submitBtn}>
-                {loading ? "Đang lưu..." : "Cập nhật"}
-              </button>
-            </form>
-          </div>
-
-          {modalSuccess === "updated" && (
-            <div style={styles.modalOverlay}>
-              <div className="modal-animate" style={styles.modalBox}>
-                <div style={styles.modalTitle}>Thông tin của bạn đã cập nhật thành công</div>
-                <span
-                  onClick={() => {
-                    setModalSuccess(null);
-                    setView("chat");
-                  }}
-                  style={styles.modalActionLink}
-                >
-                  Ấn vào đây để tiếp tục chat
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ===================== VIEW: CHAT ===================== */}
-      {view === "chat" && (
-        <div key="chat" className="view-animate" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-          <div style={styles.topHeader}>
-            <span style={styles.topArrow}>➔</span>
-          </div>
-
-          <div style={styles.tabOuterBox}>
-            <div
-              style={{
-                ...styles.slidingGlider,
-                transform: activeTab === "ai" ? "translateX(0%)" : "translateX(100%)",
-              }}
-            />
-            <button
-              onClick={() => setActiveTab("ai")}
-              style={{
-                ...styles.tabPill,
-                color: activeTab === "ai" ? "#FFFFFF" : "#4B5563",
-              }}
-            >
-              Ai–Chat Corner
-            </button>
-            <button
-              onClick={() => setActiveTab("agent")}
-              style={{
-                ...styles.tabPill,
-                color: activeTab === "agent" ? "#FFFFFF" : "#4B5563",
-              }}
-            >
-              Chat với nhân viên
-            </button>
-          </div>
-
-          <div key={activeTab} className="tab-content-animate" style={styles.chatArea}>
-            <div style={styles.timeTag}>
-              Ngày 24 Tháng 9 Năm 2026<br />lúc 3:30 PM
+        {/* ===================== VIEW: ĐĂNG KÝ ===================== */}
+        {view === "register" && (
+          <div key="register" className="view-animate" style={styles.formWrapper}>
+            <div style={styles.topNoticeBanner}>
+              <span>Vui lòng để lại thông tin để chúng tôi có thể hỗ trợ bạn tốt nhất!</span>
             </div>
 
-            {currentMessages.map((msg) => {
-              const isUser = msg.sender === "user";
-              return (
+            <div style={styles.formContainer}>
+              <h3 style={styles.formTitle}>Đăng Ký thông tin cá nhân.</h3>
+
+              {apiError && <div style={styles.errorBox}>{apiError}</div>}
+
+              <form onSubmit={handleSubmitReg(handleRegister)} style={styles.formBody}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Họ và tên của bạn.</label>
+                  <input
+                    type="text"
+                    placeholder="VD : Lê Nhất A, Trần Tứ B,..."
+                    {...registerReg("name")}
+                    style={styles.input}
+                  />
+                  {errorsReg.name && <span style={styles.fieldError}>{errorsReg.name.message}</span>}
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Nhập Gmail của bạn.</label>
+                  <input
+                    type="email"
+                    placeholder="VD : abcxyz0123@gmail.com"
+                    {...registerReg("email")}
+                    style={styles.input}
+                  />
+                  {errorsReg.email && <span style={styles.fieldError}>{errorsReg.email.message}</span>}
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Số điện thoại của bạn.</label>
+                  <input
+                    type="text"
+                    placeholder="VD : 0123456789 ,..."
+                    {...registerReg("phone")}
+                    style={styles.input}
+                  />
+                  {errorsReg.phone && <span style={styles.fieldError}>{errorsReg.phone.message}</span>}
+                </div>
+
+                <div style={styles.switchAuthText}>
+                  Đã có thông tin,{" "}
+                  <span
+                    onClick={() => {
+                      setApiError("");
+                      resetLog();
+                      setView("login");
+                    }}
+                    style={styles.linkText}
+                  >
+                    Đăng nhập ngay ...
+                  </span>
+                </div>
+
+                <button type="submit" disabled={loading} style={styles.submitBtn}>
+                  {loading ? "Đang xử lý..." : "Đăng ký"}
+                </button>
+              </form>
+            </div>
+
+            {modalSuccess === "registered" && (
+              <div style={styles.modalOverlay}>
+                <div className="modal-animate" style={styles.modalBox}>
+                  <div style={styles.modalTitle}>Thông tin của bạn đã đăng ký thành công</div>
+                  <span
+                    onClick={() => {
+                      setModalSuccess(null);
+                      setView("chat");
+                    }}
+                    style={styles.modalActionLink}
+                  >
+                    Ấn vào đây để bắt đầu chat
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===================== VIEW: ĐĂNG NHẬP ===================== */}
+        {view === "login" && (
+          <div key="login" className="view-animate" style={styles.formWrapper}>
+            <div style={styles.topNoticeBanner}>
+              <span>Vui lòng để lại thông tin để chúng tôi có thể hỗ trợ bạn tốt nhất!</span>
+            </div>
+
+            <div style={styles.formContainer}>
+              <h3 style={styles.formTitle}>Đăng Nhập thông tin cá nhân.</h3>
+
+              {apiError && <div style={styles.errorBox}>{apiError}</div>}
+
+              <form onSubmit={handleSubmitLog(handleLogin)} style={styles.formBody}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Nhập Gmail hoặc số điện thoại của bạn.</label>
+                  <input
+                    type="text"
+                    placeholder="VD : abcxyz0123@gmail.com / 0123456789"
+                    {...registerLog("account")}
+                    style={styles.input}
+                  />
+                  {errorsLog.account && <span style={styles.fieldError}>{errorsLog.account.message}</span>}
+                </div>
+
+                <div style={styles.switchAuthText}>
+                  Chưa có thông tin,{" "}
+                  <span
+                    onClick={() => {
+                      setApiError("");
+                      resetReg();
+                      setView("register");
+                    }}
+                    style={styles.linkText}
+                  >
+                    Đăng ký ngay ...
+                  </span>
+                </div>
+
+                <button type="submit" disabled={loading} style={styles.submitBtn}>
+                  {loading ? "Đang kiểm tra..." : "Đăng nhập"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ===================== VIEW: CẬP NHẬT ===================== */}
+        {view === "update" && (
+          <div key="update" className="view-animate" style={styles.formWrapper}>
+            <div style={styles.topNoticeBanner}>
+              <span>Vui lòng để lại thông tin để chúng tôi có thể hỗ trợ bạn tốt nhất!</span>
+            </div>
+
+            <div style={styles.formContainer}>
+              <h3 style={styles.formTitle}>Cập nhật thông tin cá nhân.</h3>
+
+              {apiError && <div style={styles.errorBox}>{apiError}</div>}
+
+              <form onSubmit={handleSubmitUpd(handleUpdate)} style={styles.formBody}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Họ và tên của bạn.</label>
+                  <input type="text" {...registerUpd("name")} style={styles.input} />
+                  {errorsUpd.name && <span style={styles.fieldError}>{errorsUpd.name.message}</span>}
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Nhập Gmail của bạn.</label>
+                  <input type="email" {...registerUpd("email")} style={styles.input} />
+                  {errorsUpd.email && <span style={styles.fieldError}>{errorsUpd.email.message}</span>}
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Số điện thoại của bạn.</label>
+                  <input type="text" {...registerUpd("phone")} style={styles.input} />
+                  {errorsUpd.phone && <span style={styles.fieldError}>{errorsUpd.phone.message}</span>}
+                </div>
+
+                <button type="submit" disabled={loading} style={styles.submitBtn}>
+                  {loading ? "Đang lưu..." : "Cập nhật"}
+                </button>
+              </form>
+            </div>
+
+            {modalSuccess === "updated" && (
+              <div style={styles.modalOverlay}>
+                <div className="modal-animate" style={styles.modalBox}>
+                  <div style={styles.modalTitle}>Thông tin của bạn đã cập nhật thành công</div>
+                  <span
+                    onClick={() => {
+                      setModalSuccess(null);
+                      setView("chat");
+                    }}
+                    style={styles.modalActionLink}
+                  >
+                    Ấn vào đây để tiếp tục chat
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===================== VIEW: CHAT ===================== */}
+        {view === "chat" && (
+          <div key="chat" className="view-animate" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" }}>
+            {/* VÙNG CỐ ĐỊNH HEADER TAB (Không bị cuộn) */}
+            <div style={styles.fixedHeaderArea}>
+              <div style={styles.tabOuterBox}>
                 <div
-                  key={msg.id}
-                  className="chat-bubble-animate"
                   style={{
-                    display: "flex",
-                    justifyContent: isUser ? "flex-end" : "flex-start",
-                    marginBottom: "6px",
+                    ...styles.slidingGlider,
+                    transform: activeTab === "ai" ? "translateX(0%)" : "translateX(100%)",
+                  }}
+                />
+                <button
+                  onClick={() => setActiveTab("ai")}
+                  style={{
+                    ...styles.tabPill,
+                    color: activeTab === "ai" ? "#FFFFFF" : "#4B5563",
                   }}
                 >
-                  <div style={isUser ? styles.userBubble : styles.botBubble}>
-                    {msg.text}
+                  Ai–Chat Corner
+                </button>
+                <button
+                  onClick={() => setActiveTab("agent")}
+                  style={{
+                    ...styles.tabPill,
+                    color: activeTab === "agent" ? "#FFFFFF" : "#4B5563",
+                  }}
+                >
+                  Chat với nhân viên
+                </button>
+              </div>
+            </div>
+
+            {/* VÙNG CUỘN TIN NHẮN (DUY NHẤT) */}
+            <div key={activeTab} className="tab-content-animate" style={styles.chatArea}>
+              <div style={styles.timeTag}>
+                {chatStartTime.split("\n").map((line, i) => (
+                  <React.Fragment key={i}>
+                    {line}
+                    {i === 0 && <br />}
+                  </React.Fragment>
+                ))}
+              </div>
+
+              {currentMessages.map((msg) => {
+                const isUser = msg.sender === "user";
+                return (
+                  <div
+                    key={msg.id}
+                    className="chat-bubble-animate"
+                    style={{
+                      display: "flex",
+                      justifyContent: isUser ? "flex-end" : "flex-start",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    <div style={isUser ? styles.userBubble : styles.botBubble}>
+                      {msg.text}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {isTyping && (
+                <div className="chat-bubble-animate" style={{ display: "flex", justifyContent: "flex-start", marginBottom: "6px" }}>
+                  <div style={{ ...styles.botBubble, display: "flex", gap: "4px", padding: "10px 14px" }}>
+                    <span className="dot-flashing">●</span>
+                    <span className="dot-flashing" style={{ animationDelay: "0.2s" }}>●</span>
+                    <span className="dot-flashing" style={{ animationDelay: "0.4s" }}>●</span>
                   </div>
                 </div>
-              );
-            })}
+              )}
 
-            {isTyping && (
-              <div className="chat-bubble-animate" style={{ display: "flex", justifyContent: "flex-start", marginBottom: "6px" }}>
-                <div style={{ ...styles.botBubble, display: "flex", gap: "4px", padding: "10px 14px" }}>
-                  <span className="dot-flashing">●</span>
-                  <span className="dot-flashing" style={{ animationDelay: "0.2s" }}>●</span>
-                  <span className="dot-flashing" style={{ animationDelay: "0.4s" }}>●</span>
+              {showFeedback && (
+                <div className="chat-bubble-animate" style={styles.feedbackContainer}>
+                  <span style={styles.feedbackText}>Câu trả lời có hữu ích không?</span>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <button onClick={() => handleRating("like")} style={styles.feedbackBtn}>👍</button>
+                    <button onClick={() => handleRating("dislike")} style={styles.feedbackBtn}>👎</button>
+                  </div>
                 </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {showSuggestions && (
+              <div style={styles.suggestionBar}>
+                {IT_GLOBAL_SUGGESTIONS.map((item, idx) => (
+                  <button key={idx} onClick={() => sendMessage(item)} style={styles.suggestionChip}>
+                    {item}
+                  </button>
+                ))}
               </div>
             )}
 
-            {showFeedback && (
-              <div className="chat-bubble-animate" style={styles.feedbackContainer}>
-                <span style={styles.feedbackText}>Câu trả lời có hữu ích không?</span>
-                <div style={{ display: "flex", gap: "6px" }}>
-                  <button onClick={() => handleRating("like")} style={styles.feedbackBtn}>👍</button>
-                  <button onClick={() => handleRating("dislike")} style={styles.feedbackBtn}>👎</button>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {showSuggestions && (
-            <div style={styles.suggestionBar}>
-              {IT_GLOBAL_SUGGESTIONS.map((item, idx) => (
-                <button key={idx} onClick={() => sendMessage(item)} style={styles.suggestionChip}>
-                  {item}
+            <div style={styles.chatFooter}>
+              <div style={styles.inputBoxContainer}>
+                <textarea
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder="Nhập những gì bạn đang thắc mắc..."
+                  style={styles.chatInput}
+                />
+                <button onClick={handleSend} style={styles.sendIconBtn}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
                 </button>
-              ))}
+              </div>
+              <span onClick={() => setView("update")} style={styles.updateLink}>
+                Cập nhật thông tin của tài khoản
+              </span>
             </div>
-          )}
-
-          <div style={styles.chatFooter}>
-            <div style={styles.inputBoxContainer}>
-              <textarea
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-                placeholder="Nhập những gì bạn đang thắc mắc..."
-                style={styles.chatInput}
-              />
-              <button onClick={handleSend} style={styles.sendIconBtn}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="22" y1="2" x2="11" y2="13"></line>
-                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                </svg>
-              </button>
-            </div>
-            <span onClick={() => setView("update")} style={styles.updateLink}>
-              Cập nhật thông tin của tài khoản
-            </span>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 }
 
 const styles = {
+  launcherBtn: {
+    position: "fixed",
+    bottom: "20px",
+    right: "20px",
+    zIndex: 1000000,
+    width: "60px",
+    height: "60px",
+    borderRadius: "50%",
+    backgroundColor: "#1976D2",
+    border: "none",
+    boxShadow: "0 6px 20px rgba(25, 118, 210, 0.4)",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease",
+  },
+  closeBtnRight: {
+    position: "absolute",
+    top: "10px",
+    right: "16px",
+    zIndex: 10,
+    background: "transparent",
+    border: "none",
+    fontSize: "16px",
+    fontWeight: "bold",
+    color: "#4B5563",
+    cursor: "pointer",
+    padding: "4px",
+    lineHeight: 1,
+  },
   card: {
+    position: "fixed",
+    bottom: "90px",
+    right: "20px",
+    zIndex: 999999,
     width: "360px",
     height: "620px",
     backgroundColor: "#FAFAFA",
     borderRadius: "26px",
     border: "1px solid #E5E7EB",
-    boxShadow: "0 12px 36px rgba(0,0,0,0.06)",
+    boxShadow: "0 16px 40px rgba(0, 0, 0, 0.12)",
     display: "flex",
     flexDirection: "column",
     overflow: "hidden",
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    position: "relative",
     boxSizing: "border-box",
+    transformOrigin: "bottom right",
+    transition: "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease",
   },
-  topHeader: {
-    padding: "14px 20px 4px",
-    display: "flex",
-    justifyContent: "flex-end",
-  },
-  topArrow: {
-    fontSize: "16px",
-    color: "#374151",
-    fontWeight: "bold",
+  fixedHeaderArea: {
+    paddingTop: "26px",
+    backgroundColor: "#FAFAFA",
+    flexShrink: 0,
+    zIndex: 2,
   },
   tabOuterBox: {
-    margin: "6px 20px 10px",
+    margin: "6px 20px 6px",
     border: "1.5px solid #1F2937",
     borderRadius: "14px",
     padding: "3px",
@@ -654,6 +756,7 @@ const styles = {
     flex: 1,
     padding: "6px 18px",
     overflowY: "auto",
+    minHeight: 0,
   },
   timeTag: {
     textAlign: "center",
@@ -670,6 +773,8 @@ const styles = {
     fontSize: "13px",
     lineHeight: "1.35",
     maxWidth: "80%",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
     boxShadow: "0 1px 3px rgba(25,118,210,0.12)",
   },
   userBubble: {
@@ -681,12 +786,15 @@ const styles = {
     fontSize: "13px",
     lineHeight: "1.35",
     maxWidth: "80%",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
   },
   suggestionBar: {
     padding: "4px 18px 8px",
     display: "flex",
     flexDirection: "column",
     gap: "6px",
+    flexShrink: 0,
   },
   suggestionChip: {
     backgroundColor: "#E5E7EB",
@@ -704,6 +812,7 @@ const styles = {
     flexDirection: "column",
     alignItems: "center",
     gap: "8px",
+    flexShrink: 0,
   },
   inputBoxContainer: {
     width: "100%",
@@ -749,14 +858,15 @@ const styles = {
     flexDirection: "column",
     height: "100%",
     backgroundColor: "#FFFFFF",
+    paddingTop: "14px",
   },
   topNoticeBanner: {
     backgroundColor: "#F9FAFB",
-    padding: "14px 18px",
+    padding: "12px 36px 12px 18px",
     borderBottom: "1px solid #E5E7EB",
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     fontSize: "12.5px",
     fontWeight: "bold",
     fontStyle: "italic",
