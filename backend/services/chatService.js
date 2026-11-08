@@ -99,6 +99,9 @@ export async function generateBotReply(userMessage, historyRows = []) {
             return faqCache.get(normalizedMsg);
         }
 
+        // BẮT ĐẦU TÍNH TỔNG THỜI GIAN
+        const totalStartTime = Date.now(); 
+
         const safeUserMessage = maskSensitiveData(userMessage);
 
         let context = "";
@@ -126,11 +129,18 @@ export async function generateBotReply(userMessage, historyRows = []) {
         const result = await chat.sendMessage(promptWithContext);
         console.timeEnd("⏱️ Thời gian Gemini rep");
 
+        // CHỐT TỔNG THỜI GIAN
+        const totalTime = Date.now() - totalStartTime;
+        const timeInSeconds = (totalTime / 1000).toFixed(2);
+
         let text = result.response?.text ? result.response.text() : "";
         
-        // Cạo sạch toàn bộ dấu * (cả in đậm lẫn bullet point)
         if (typeof text === "string") {
+            // Cạo sạch toàn bộ dấu *
             text = text.replace(/\*/g, ""); 
+            
+            // THÊM CHỈ SỐ THỜI GIAN VÀO CUỐI TIN NHẮN
+            text += `\n\n*(Trả lời trong vòng ${timeInSeconds} giây)*`;
         }
 
         const cleanText = text.trim();
@@ -143,5 +153,21 @@ export async function generateBotReply(userMessage, historyRows = []) {
     } catch (error) {
         console.error("Loi Gemini:", error?.message || String(error));
         return FALLBACK_REPLY;
+    }
+}
+// Thêm hàm này vào cuối file chatService.js
+export async function loadFAQsToCache() {
+    try {
+        faqCache.clear(); // Xóa bộ nhớ tạm cũ
+        // Lấy toàn bộ dữ liệu từ bảng faqs (theo cấu trúc file create_faqs.sql của bạn)
+        const result = await pool.query(`SELECT question, answer FROM faqs`); 
+        
+        for (const row of result.rows) {
+            const normalizedQ = row.question.toLowerCase().trim();
+            faqCache.set(normalizedQ, row.answer);
+        }
+        console.log(`✅ Đã đồng bộ ${faqCache.size} câu hỏi FAQ từ Database vào RAM!`);
+    } catch (error) {
+        console.error("❌ Lỗi khi tải FAQ vào RAM:", error.message);
     }
 }

@@ -1,10 +1,8 @@
-
 import pool from "../db.js";
 import { updateFaqEmbedding } from "../services/faqService.js";
+import { loadFAQsToCache } from "../services/chatService.js"; // <-- THÊM IMPORT NÀY ĐỂ ĐỒNG BỘ RAM
 
 function triggerEmbedding(faq) {
-    // Chạy sau khi API đã lưu FAQ thành công.
-    // Không chờ Gemini hoàn thành trước khi trả response.
     setImmediate(() => {
         Promise.resolve()
             .then(() => updateFaqEmbedding(
@@ -103,6 +101,9 @@ export async function createFaq(req, res, next) {
 
         const faq = result.rows[0];
 
+        // ⚡ GỌI ĐỒNG BỘ RAM NGAY LẬP TỨC
+        await loadFAQsToCache();
+
         res.status(201).json({
             success: true,
             message: "Thêm FAQ thành công",
@@ -161,6 +162,9 @@ export async function updateFaq(req, res, next) {
 
         const faq = result.rows[0];
 
+        // ⚡ GỌI ĐỒNG BỘ RAM NGAY LẬP TỨC
+        await loadFAQsToCache();
+
         res.status(200).json({
             success: true,
             message: "Cập nhật FAQ thành công",
@@ -195,6 +199,9 @@ export async function deleteFaq(req, res, next) {
                 message: "Không tìm thấy FAQ"
             });
         }
+
+        // ⚡ GỌI ĐỒNG BỘ RAM NGAY LẬP TỨC
+        await loadFAQsToCache();
 
         return res.status(200).json({
             success: true,
