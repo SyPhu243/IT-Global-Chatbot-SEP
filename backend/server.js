@@ -7,6 +7,7 @@ import sessionRoutes from './routes/sessionRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import messageRatingRoutes from "./routes/messageRatingRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import adminConversationRoutes from "./routes/adminConversationRoutes.js";
 import { verifyToken } from "./middlewares/verifyToken.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 
@@ -55,6 +56,7 @@ app.use("/api/contacts", contactRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/messages", messageRatingRoutes);
+app.use("/api/admin", adminConversationRoutes);
 
 // API Test kết nối DB
 app.get("/api/db-test", async (req, res) => {
