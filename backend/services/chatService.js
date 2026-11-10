@@ -1,18 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import pg from "pg";
+import pool from '../db.js'; 
 import { getEmbedding } from '../utils/textProcessor.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
-const { Pool } = pg;
-
-const pool = new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5432,
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME || 'chatbot_db'
-});
 
 const MODEL_NAME = "gemini-flash-latest";
 const MAX_HISTORY = 4; 
@@ -21,6 +12,17 @@ let model = null;
 let cachedVectorDB = null;
 
 const faqCache = new Map(); 
+
+// HÀM MỚI: Chuẩn hóa tiếng Việt tuyệt đối (Khử dấu câu thừa, đồng bộ Unicode, xóa khoảng trắng)
+function normalizeText(text) {
+    if (!text) return "";
+    return text
+        .normalize("NFC") // Chuẩn hóa Unicode tiếng Việt
+        .toLowerCase()
+        .replace(/[?.!,;]/g, "") // Cạo sạch các dấu câu phổ biến
+        .replace(/\s+/g, " ") // Đưa nhiều khoảng trắng về 1 khoảng trắng
+        .trim();
+}
 
 function maskSensitiveData(text) {
     if (!text) return "";
@@ -42,7 +44,7 @@ function cosineSimilarity(vecA, vecB) {
 
 async function searchLocalVector(queryVector) {
     if (!cachedVectorDB) {
-        console.log("⏳ Đang tải Database vào RAM lần đầu để tăng tốc...");
+        console.log("⏳ Đang tải Database Vector vào RAM lần đầu...");
         const sqlQuery = `SELECT content, embedding FROM knowledge_chunks`;
         const result = await pool.query(sqlQuery);
         cachedVectorDB = result.rows.map(row => ({
@@ -51,6 +53,9 @@ async function searchLocalVector(queryVector) {
         }));
         console.log(`✅ Đã lưu ${cachedVectorDB.length} khối kiến thức vào RAM!`);
     }
+    
+    if (cachedVectorDB.length === 0) return ""; // Tránh tính toán vô ích nếu chưa có data
+
     const scoredChunks = cachedVectorDB.map(item => ({
         content: item.content,
         score: cosineSimilarity(queryVector, item.vector)
@@ -62,7 +67,7 @@ async function searchLocalVector(queryVector) {
 function getModel() {
     if (model) return model;
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error("Thieu bien moi truong GEMINI_API_KEY");
+    if (!apiKey) throw new Error("Thiếu biến môi trường GEMINI_API_KEY");
     const genAI = new GoogleGenerativeAI(apiKey);
     const SYSTEM_PROMPT = "Bạn là trợ lý ảo hỗ trợ khách hàng của IT Global. Trả lời ngắn gọn, lịch sự. HÃY DỰA VÀO NGỮ CẢNH SAU ĐÂY ĐỂ TRẢ LỜI. Tuyệt đối không tự bịa thông tin. Nếu user đưa thông tin cá nhân (đã bị ẩn), hãy ghi nhận và bảo họ đợi liên hệ. Hãy trả lời bằng văn bản thuần túy, không sử dụng Markdown (như các dấu hoa thị để in đậm). Các danh sách phải được xuống dòng rõ ràng.";
     model = genAI.getGenerativeModel({ model: MODEL_NAME, systemInstruction: SYSTEM_PROMPT });
@@ -92,19 +97,18 @@ function buildHistory(rows) {
 
 export async function generateBotReply(userMessage, historyRows = []) {
     try {
-        const normalizedMsg = userMessage.toLowerCase().trim();
+        // Áp dụng bộ lọc chuẩn hóa chuỗi mới
+        const normalizedMsg = normalizeText(userMessage);
         
         if (faqCache.has(normalizedMsg)) {
             console.log("⚡ [FAQ CACHE] Phản hồi ngay lập tức, không cần gọi Google API!");
             return faqCache.get(normalizedMsg);
         }
 
-        // BẮT ĐẦU TÍNH TỔNG THỜI GIAN
         const totalStartTime = Date.now(); 
-
         const safeUserMessage = maskSensitiveData(userMessage);
-
         let context = "";
+
         try {
             console.time("⏱️ Thời gian tạo Vector");
             const queryVector = await getEmbedding(safeUserMessage);
@@ -113,9 +117,9 @@ export async function generateBotReply(userMessage, historyRows = []) {
             console.time("⏱️ Thời gian quét RAM");
             context = await searchLocalVector(queryVector);
             console.timeEnd("⏱️ Thời gian quét RAM");
-            console.log("👉 ĐÃ TÌM THẤY DATA TRONG RAM");
+            if (context) console.log("👉 ĐÃ TÌM THẤY NGỮ CẢNH TRONG RAM");
         } catch (dbError) {
-            console.error("❌ Lỗi khi tìm kiếm:", dbError.message);
+            console.error("❌ Lỗi khi quét Vector:", dbError.message);
         }
 
         const promptWithContext = context 
@@ -129,41 +133,38 @@ export async function generateBotReply(userMessage, historyRows = []) {
         const result = await chat.sendMessage(promptWithContext);
         console.timeEnd("⏱️ Thời gian Gemini rep");
 
-        // CHỐT TỔNG THỜI GIAN
         const totalTime = Date.now() - totalStartTime;
         const timeInSeconds = (totalTime / 1000).toFixed(2);
 
         let text = result.response?.text ? result.response.text() : "";
         
         if (typeof text === "string") {
-            // Cạo sạch toàn bộ dấu *
             text = text.replace(/\*/g, ""); 
-            
-            // THÊM CHỈ SỐ THỜI GIAN VÀO CUỐI TIN NHẮN
             text += `\n\n*(Trả lời trong vòng ${timeInSeconds} giây)*`;
         }
 
         const cleanText = text.trim();
         
+        // Lưu câu trả lời từ Gemini vào bộ đệm luôn để lần sau hỏi lại không tốn API
         if (cleanText && cleanText !== FALLBACK_REPLY) {
             faqCache.set(normalizedMsg, cleanText);
         }
 
         return cleanText || FALLBACK_REPLY;
     } catch (error) {
-        console.error("Loi Gemini:", error?.message || String(error));
+        console.error("❌ Lỗi Gemini:", error?.message || String(error));
         return FALLBACK_REPLY;
     }
 }
-// Thêm hàm này vào cuối file chatService.js
+
 export async function loadFAQsToCache() {
     try {
-        faqCache.clear(); // Xóa bộ nhớ tạm cũ
-        // Lấy toàn bộ dữ liệu từ bảng faqs (theo cấu trúc file create_faqs.sql của bạn)
+        faqCache.clear(); 
         const result = await pool.query(`SELECT question, answer FROM faqs`); 
         
         for (const row of result.rows) {
-            const normalizedQ = row.question.toLowerCase().trim();
+            // Áp dụng bộ lọc chuẩn hóa khi đưa vào RAM
+            const normalizedQ = normalizeText(row.question);
             faqCache.set(normalizedQ, row.answer);
         }
         console.log(`✅ Đã đồng bộ ${faqCache.size} câu hỏi FAQ từ Database vào RAM!`);
