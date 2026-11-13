@@ -2,8 +2,11 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState("");
   const navigate = useNavigate();
 
   const {
@@ -12,30 +15,90 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm();
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     setLoading(true);
-    
-    // Giả lập lưu token để vượt qua ProtectedRoute
-    localStorage.setItem("admin_jwt_token", "fake_admin_token_123");
-    
-    setTimeout(() => {
+    setApiError("");
+
+    const username = data.username.trim();
+    const password = data.password;
+
+    // 1. CHẶN NGAY TỪ FRONTEND: Chỉ duy nhất tài khoản "admin" được phép đăng nhập trang này
+    if (username.toLowerCase() !== "admin") {
+      setApiError("Truy cập bị từ chối! Chỉ tài khoản Quản trị viên (admin) mới có quyền đăng nhập.");
       setLoading(false);
-      // Chuyển hướng thẳng đến trang Quản lý FAQ
-      navigate("/admin/faq");
-    }, 500);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.message || "Sai tài khoản hoặc mật khẩu Admin!");
+      }
+
+      // Kiểm tra role nếu BE có trả về
+      const role = result.role || result.user?.role || result.data?.role || "admin";
+      if (role.toLowerCase() !== "admin") {
+        throw new Error("Tài khoản không có quyền Quản trị viên (Admin)!");
+      }
+
+      const token =
+        result.accessToken ||
+        result.token ||
+        result.data?.accessToken ||
+        result.data?.token;
+
+      if (!token) {
+        throw new Error("Server không trả về token xác thực!");
+      }
+
+      localStorage.setItem("admin_jwt_token", token);
+      if (!localStorage.getItem("admin_profile")) {
+        localStorage.setItem(
+          "admin_profile",
+          JSON.stringify({ displayName: "Admin", email: "admin@it-global.net" })
+        );
+      }
+      navigate("/admin/faq", { replace: true });
+    } catch (err) {
+      // Fallback khi BE chưa bật server nhưng nhập đúng duy nhất admin / Admin@123
+      if (username === "admin" && password === "Admin@123" && err.message.includes("fetch")) {
+        localStorage.setItem("admin_jwt_token", "dev_fallback_admin_token");
+        if (!localStorage.getItem("admin_profile")) {
+          localStorage.setItem(
+            "admin_profile",
+            JSON.stringify({ displayName: "Admin", email: "admin@it-global.net" })
+          );
+        }
+        navigate("/admin/faq", { replace: true });
+        return;
+      }
+      setApiError(err.message || "Đăng nhập thất bại!");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div style={styles.container}>
       <div style={styles.card}>
         <h2 style={styles.title}>Đăng nhập Hệ thống IT-Global</h2>
+        <p style={styles.subtitle}>Khu vực dành riêng cho Quản trị viên (Admin)</p>
+
+        {apiError && <div style={styles.errorBox}>{apiError}</div>}
 
         <form onSubmit={handleSubmit(onSubmit)} style={styles.form}>
           <div style={styles.formGroup}>
             <label style={styles.label}>Tên đăng nhập (Username):</label>
             <input
               type="text"
-              placeholder="Nhập tên đăng nhập..."
+              placeholder="admin"
               {...register("username", {
                 required: "Vui lòng nhập tên đăng nhập!",
               })}
@@ -50,7 +113,7 @@ export default function LoginPage() {
             <label style={styles.label}>Mật khẩu (Password):</label>
             <input
               type="password"
-              placeholder="Nhập mật khẩu..."
+              placeholder="••••••••"
               {...register("password", {
                 required: "Vui lòng nhập mật khẩu!",
               })}
@@ -90,9 +153,24 @@ const styles = {
   title: {
     fontSize: "20px",
     fontWeight: "bold",
-    marginBottom: "20px",
+    margin: "0 0 6px 0",
     textAlign: "center",
     color: "#1f2937",
+  },
+  subtitle: {
+    fontSize: "12.5px",
+    color: "#6b7280",
+    textAlign: "center",
+    margin: "0 0 20px 0",
+  },
+  errorBox: {
+    backgroundColor: "#fef2f2",
+    color: "#dc2626",
+    padding: "10px 12px",
+    borderRadius: "6px",
+    fontSize: "13px",
+    marginBottom: "15px",
+    border: "1px solid #fecaca",
   },
   form: {
     display: "flex",
