@@ -1,6 +1,6 @@
 import pool from "../db.js";
 import { updateFaqEmbedding } from "../services/faqService.js";
-import { loadFAQsToCache } from "../services/chatService.js"; // <-- THÊM IMPORT NÀY ĐỂ ĐỒNG BỘ RAM
+import { loadFAQsToCache } from "../services/chatService.js";
 
 function triggerEmbedding(faq) {
     setImmediate(() => {
@@ -64,7 +64,7 @@ function validateFaq(body) {
 export async function getFaqs(req, res, next) {
     try {
         const result = await pool.query(`
-            SELECT id, question, answer, category, updated_at
+            SELECT id, question, answer, category, created_at
             FROM faqs
             ORDER BY id DESC
         `);
@@ -80,7 +80,7 @@ export async function getFaqs(req, res, next) {
 }
 
 // POST /api/faqs
-export async function createFaq(req, res, next) {
+export async function createFaq(req, res) { // Xóa bỏ tham số 'next'
     try {
         const validation = validateFaq(req.body);
 
@@ -96,7 +96,7 @@ export async function createFaq(req, res, next) {
         const result = await pool.query(`
             INSERT INTO faqs (question, answer, category)
             VALUES ($1, $2, $3)
-            RETURNING id, question, answer, category, updated_at
+            RETURNING id, question, answer, category, created_at
         `, [question, answer, category]);
 
         const faq = result.rows[0];
@@ -112,7 +112,15 @@ export async function createFaq(req, res, next) {
 
         triggerEmbedding(faq);
     } catch (error) {
-        next(error);
+        // IN LỖI RA CONSOLE ĐỂ KIỂM TRA
+        console.error("❌ Lỗi khi thêm FAQ:", error); 
+        
+        // TRẢ VỀ JSON LỖI RÕ RÀNG CHO FRONTEND
+        res.status(500).json({ 
+            success: false, 
+            message: "Lỗi máy chủ khi thêm FAQ", 
+            error: error.message 
+        });
     }
 }
 
@@ -145,7 +153,7 @@ export async function updateFaq(req, res, next) {
                 updated_at = CURRENT_TIMESTAMP,
                 embedding = NULL
             WHERE id = $4
-            RETURNING id, question, answer, category, updated_at
+            RETURNING id, question, answer, category, created_at
         `, [
             question,
             answer,
