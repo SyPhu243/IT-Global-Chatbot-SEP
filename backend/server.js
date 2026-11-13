@@ -9,6 +9,7 @@ import messageRatingRoutes from "./routes/messageRatingRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import adminConversationRoutes from "./routes/adminConversationRoutes.js";
 import faqRoutes from "./routes/faqRoutes.js";
+import { loadFAQsToCache } from "./services/chatService.js";
 import { verifyToken } from "./middlewares/verifyToken.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 
@@ -59,6 +60,7 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/messages", messageRatingRoutes);
 app.use("/api/admin", adminConversationRoutes);
 app.use("/api/faqs", faqRoutes);
+loadFAQsToCache();
 
 // API Test kết nối DB
 app.get("/api/db-test", async (req, res) => {

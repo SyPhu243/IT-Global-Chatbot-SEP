@@ -4,7 +4,6 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import axios from "axios";
 
-// Helper: Regex & Hàm tạo UUID v4 chuẩn để khớp với Validation của Backend
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const generateUUID = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -15,7 +14,6 @@ const generateUUID = () => {
   );
 };
 
-// Helper: Lấy thời gian thực hiện tại khi bắt đầu chat
 const getFormattedDateTime = () => {
   const now = new Date();
   const dateStr = now.toLocaleDateString("vi-VN", {
@@ -31,7 +29,6 @@ const getFormattedDateTime = () => {
   return `${dateStr}\nlúc ${timeStr}`;
 };
 
-// Schema Validation cho Đăng ký & Cập nhật
 const registerSchema = yup.object().shape({
   name: yup.string().required("Họ và tên không được để trống!"),
   email: yup
@@ -44,7 +41,6 @@ const registerSchema = yup.object().shape({
     .matches(/^0\d{9,10}$/, "Số điện thoại chỉ chứa số, bắt đầu bằng 0 (10 đến 11 số)!"),
 });
 
-// Schema Validation cho Đăng nhập
 const loginSchema = yup.object().shape({
   account: yup
     .string()
@@ -63,21 +59,28 @@ const IT_GLOBAL_SUGGESTIONS = [
   "Báo giá & giải pháp phần mềm theo yêu cầu",
 ];
 
+const RATING_LABELS = {
+  1: "Rất không hài lòng",
+  2: "Chưa hài lòng",
+  3: "Bình thường",
+  4: "Hài lòng",
+  5: "Tuyệt vời!",
+};
+
+const POSITIVE_TAGS = ["Nhanh & chính xác", "Giải đáp đúng ý", "Thân thiện, dễ hiểu"];
+const NEGATIVE_TAGS = ["Chưa đúng trọng tâm", "Thông tin còn thiếu", "Cần gặp nhân viên"];
+
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
-  const [view, setView] = useState("register"); // "register" | "login" | "update" | "chat"
-  const [modalSuccess, setModalSuccess] = useState(null); // "registered" | "updated" | null
+  const [view, setView] = useState("register");
+  const [modalSuccess, setModalSuccess] = useState(null);
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // State lưu thời gian thực bắt đầu phiên chat
   const [chatStartTime] = useState(() => getFormattedDateTime());
-
-  // State quản lý session & trạng thái bot typing
   const [sessionId, setSessionId] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
 
-  // Form hooks từ react-hook-form
   const {
     register: registerReg,
     handleSubmit: handleSubmitReg,
@@ -99,8 +102,7 @@ export default function ChatWidget() {
     setValue: setValueUpd,
   } = useForm({ resolver: yupResolver(registerSchema) });
 
-  // Chat states
-  const [activeTab, setActiveTab] = useState("ai"); // "ai" | "agent"
+  const [activeTab, setActiveTab] = useState("ai");
   const [aiMessages, setAiMessages] = useState([
     { id: 1, sender: "bot", text: "IT-Global có thể giúp gì cho bạn ?" },
     { id: 2, sender: "bot", text: "Chúng tôi sẽ cố gắng hết sức để giải quyết" },
@@ -115,12 +117,16 @@ export default function ChatWidget() {
   const [hasSentFirstMessage, setHasSentFirstMessage] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // Like / Dislike rating states
+  // CSAT 5-Star Rating states
   const [hasRated, setHasRated] = useState(() => localStorage.getItem("chat_widget_rated") === "true");
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackThreshold] = useState(() => Math.floor(Math.random() * 2) + 5);
+  const [ratingScore, setRatingScore] = useState(0);
+  const [hoverScore, setHoverScore] = useState(0);
+  const [selectedTags, setSelectedTags] = useState([]);
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
-  // Khởi tạo và lưu Session ID chuẩn UUID
   const initChatSession = async (userInfo) => {
     try {
       const res = await axios.post("/api/sessions", {
@@ -156,7 +162,7 @@ export default function ChatWidget() {
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [aiMessages, agentMessages, activeTab, isTyping, showFeedback, view, isOpen]);
+  }, [aiMessages, agentMessages, activeTab, isTyping, showFeedback, ratingScore, view, isOpen]);
 
   useEffect(() => {
     if (hasRated || view !== "chat") return;
@@ -164,7 +170,6 @@ export default function ChatWidget() {
     if (userMsgCount >= feedbackThreshold) setShowFeedback(true);
   }, [aiMessages, hasRated, feedbackThreshold, view]);
 
-  // Submit Handler: Đăng ký
   const handleRegister = async (data) => {
     setLoading(true);
     setApiError("");
@@ -174,7 +179,6 @@ export default function ChatWidget() {
         email: data.email,
         phone: data.phone,
       };
-
       await axios.post("/api/contacts", payload).catch(() => {});
       localStorage.setItem("chat_user_info", JSON.stringify(data));
       setValueUpd("name", data.name);
@@ -189,7 +193,6 @@ export default function ChatWidget() {
     }
   };
 
-  // Submit Handler: Đăng nhập
   const handleLogin = async (data) => {
     setLoading(true);
     setApiError("");
@@ -212,7 +215,6 @@ export default function ChatWidget() {
     }
   };
 
-  // Submit Handler: Cập nhật
   const handleUpdate = async (data) => {
     setLoading(true);
     setApiError("");
@@ -232,7 +234,6 @@ export default function ChatWidget() {
     }
   };
 
-  // Gửi tin nhắn qua API /api/chat/message
   const sendMessage = async (text) => {
     const content = text.trim();
     if (!content) return;
@@ -288,10 +289,35 @@ export default function ChatWidget() {
     sendMessage(inputText);
   };
 
-  const handleRating = (type) => {
-    localStorage.setItem("chat_widget_rated", "true");
-    setHasRated(true);
-    setShowFeedback(false);
+  const toggleFeedbackTag = (tag) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const handleSelectStar = (star) => {
+    setRatingScore(star);
+    setSelectedTags([]);
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (ratingScore === 0) return;
+    try {
+      await axios.post("/api/feedback", {
+        sessionId: sessionId || generateUUID(),
+        rating: ratingScore,
+        tags: selectedTags,
+        comment: feedbackComment.trim(),
+      }).catch(() => {});
+    } finally {
+      localStorage.setItem("chat_widget_rated", "true");
+      setHasRated(true);
+      setFeedbackSubmitted(true);
+      setTimeout(() => {
+        setShowFeedback(false);
+        setFeedbackSubmitted(false);
+      }, 1800);
+    }
   };
 
   const currentMessages = activeTab === "ai" ? aiMessages : agentMessages;
@@ -299,7 +325,6 @@ export default function ChatWidget() {
 
   return (
     <>
-      {/* 1. NÚT LAUNCHER HÌNH TRÒN */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         style={{
@@ -326,23 +351,15 @@ export default function ChatWidget() {
         )}
       </button>
 
-      {/* 2. KHUNG CHAT POP-UP */}
       <div
         style={{
           ...styles.card,
           opacity: isOpen ? 1 : 0,
-          transform: isOpen
-            ? "translateY(0) scale(1)"
-            : "translateY(24px) scale(0.92)",
+          transform: isOpen ? "translateY(0) scale(1)" : "translateY(24px) scale(0.92)",
           pointerEvents: isOpen ? "auto" : "none",
         }}
       >
-        {/* Nút đóng khung chat (✕) nằm ở BÊN PHẢI */}
-        <button
-          onClick={() => setIsOpen(false)}
-          style={styles.closeBtnRight}
-          title="Đóng khung chat"
-        >
+        <button onClick={() => setIsOpen(false)} style={styles.closeBtnRight} title="Đóng khung chat">
           ✕
         </button>
 
@@ -361,47 +378,25 @@ export default function ChatWidget() {
               <form onSubmit={handleSubmitReg(handleRegister)} style={styles.formBody}>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Họ và tên của bạn.</label>
-                  <input
-                    type="text"
-                    placeholder="VD : Lê Nhất A, Trần Tứ B,..."
-                    {...registerReg("name")}
-                    style={styles.input}
-                  />
+                  <input type="text" placeholder="VD : Lê Nhất A, Trần Tứ B,..." {...registerReg("name")} style={styles.input} />
                   {errorsReg.name && <span style={styles.fieldError}>{errorsReg.name.message}</span>}
                 </div>
 
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Nhập Gmail của bạn.</label>
-                  <input
-                    type="email"
-                    placeholder="VD : abcxyz0123@gmail.com"
-                    {...registerReg("email")}
-                    style={styles.input}
-                  />
+                  <input type="email" placeholder="VD : abcxyz0123@gmail.com" {...registerReg("email")} style={styles.input} />
                   {errorsReg.email && <span style={styles.fieldError}>{errorsReg.email.message}</span>}
                 </div>
 
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Số điện thoại của bạn.</label>
-                  <input
-                    type="text"
-                    placeholder="VD : 0123456789 ,..."
-                    {...registerReg("phone")}
-                    style={styles.input}
-                  />
+                  <input type="text" placeholder="VD : 0123456789 ,..." {...registerReg("phone")} style={styles.input} />
                   {errorsReg.phone && <span style={styles.fieldError}>{errorsReg.phone.message}</span>}
                 </div>
 
                 <div style={styles.switchAuthText}>
                   Đã có thông tin,{" "}
-                  <span
-                    onClick={() => {
-                      setApiError("");
-                      resetLog();
-                      setView("login");
-                    }}
-                    style={styles.linkText}
-                  >
+                  <span onClick={() => { setApiError(""); resetLog(); setView("login"); }} style={styles.linkText}>
                     Đăng nhập ngay ...
                   </span>
                 </div>
@@ -416,13 +411,7 @@ export default function ChatWidget() {
               <div style={styles.modalOverlay}>
                 <div className="modal-animate" style={styles.modalBox}>
                   <div style={styles.modalTitle}>Thông tin của bạn đã đăng ký thành công</div>
-                  <span
-                    onClick={() => {
-                      setModalSuccess(null);
-                      setView("chat");
-                    }}
-                    style={styles.modalActionLink}
-                  >
+                  <span onClick={() => { setModalSuccess(null); setView("chat"); }} style={styles.modalActionLink}>
                     Ấn vào đây để bắt đầu chat
                   </span>
                 </div>
@@ -446,25 +435,13 @@ export default function ChatWidget() {
               <form onSubmit={handleSubmitLog(handleLogin)} style={styles.formBody}>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Nhập Gmail hoặc số điện thoại của bạn.</label>
-                  <input
-                    type="text"
-                    placeholder="VD : abcxyz0123@gmail.com / 0123456789"
-                    {...registerLog("account")}
-                    style={styles.input}
-                  />
+                  <input type="text" placeholder="VD : abcxyz0123@gmail.com / 0123456789" {...registerLog("account")} style={styles.input} />
                   {errorsLog.account && <span style={styles.fieldError}>{errorsLog.account.message}</span>}
                 </div>
 
                 <div style={styles.switchAuthText}>
                   Chưa có thông tin,{" "}
-                  <span
-                    onClick={() => {
-                      setApiError("");
-                      resetReg();
-                      setView("register");
-                    }}
-                    style={styles.linkText}
-                  >
+                  <span onClick={() => { setApiError(""); resetReg(); setView("register"); }} style={styles.linkText}>
                     Đăng ký ngay ...
                   </span>
                 </div>
@@ -518,13 +495,7 @@ export default function ChatWidget() {
               <div style={styles.modalOverlay}>
                 <div className="modal-animate" style={styles.modalBox}>
                   <div style={styles.modalTitle}>Thông tin của bạn đã cập nhật thành công</div>
-                  <span
-                    onClick={() => {
-                      setModalSuccess(null);
-                      setView("chat");
-                    }}
-                    style={styles.modalActionLink}
-                  >
+                  <span onClick={() => { setModalSuccess(null); setView("chat"); }} style={styles.modalActionLink}>
                     Ấn vào đây để tiếp tục chat
                   </span>
                 </div>
@@ -536,7 +507,6 @@ export default function ChatWidget() {
         {/* ===================== VIEW: CHAT ===================== */}
         {view === "chat" && (
           <div key="chat" className="view-animate" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" }}>
-            {/* VÙNG CỐ ĐỊNH HEADER TAB (Không bị cuộn) */}
             <div style={styles.fixedHeaderArea}>
               <div style={styles.tabOuterBox}>
                 <div
@@ -547,26 +517,19 @@ export default function ChatWidget() {
                 />
                 <button
                   onClick={() => setActiveTab("ai")}
-                  style={{
-                    ...styles.tabPill,
-                    color: activeTab === "ai" ? "#FFFFFF" : "#4B5563",
-                  }}
+                  style={{ ...styles.tabPill, color: activeTab === "ai" ? "#FFFFFF" : "#4B5563" }}
                 >
                   Ai–Chat Corner
                 </button>
                 <button
                   onClick={() => setActiveTab("agent")}
-                  style={{
-                    ...styles.tabPill,
-                    color: activeTab === "agent" ? "#FFFFFF" : "#4B5563",
-                  }}
+                  style={{ ...styles.tabPill, color: activeTab === "agent" ? "#FFFFFF" : "#4B5563" }}
                 >
                   Chat với nhân viên
                 </button>
               </div>
             </div>
 
-            {/* VÙNG CUỘN TIN NHẮN (DUY NHẤT) */}
             <div key={activeTab} className="tab-content-animate" style={styles.chatArea}>
               <div style={styles.timeTag}>
                 {chatStartTime.split("\n").map((line, i) => (
@@ -606,15 +569,92 @@ export default function ChatWidget() {
                 </div>
               )}
 
+              {/* HỆ THỐNG ĐÁNH GIÁ 5 SAO CSAT */}
               {showFeedback && (
-                <div className="chat-bubble-animate" style={styles.feedbackContainer}>
-                  <span style={styles.feedbackText}>Câu trả lời có hữu ích không?</span>
-                  <div style={{ display: "flex", gap: "6px" }}>
-                    <button onClick={() => handleRating("like")} style={styles.feedbackBtn}>👍</button>
-                    <button onClick={() => handleRating("dislike")} style={styles.feedbackBtn}>👎</button>
-                  </div>
+                <div className="chat-bubble-animate" style={styles.feedbackCard}>
+                  {feedbackSubmitted ? (
+                    <div style={styles.feedbackThanks}>
+                       Cảm ơn bạn đã đánh giá {ratingScore}/5 sao! IT-Global sẽ không ngừng cải thiện chất lượng dịch vụ.
+                    </div>
+                  ) : (
+                    <>
+                      <div style={styles.feedbackHeader}>
+                        <span style={styles.feedbackTitle}>Bạn đánh giá cuộc trò chuyện này thế nào?</span>
+                        <button onClick={() => setShowFeedback(false)} style={styles.feedbackDismiss} title="Đóng">
+                          ✕
+                        </button>
+                      </div>
+
+                      <div style={styles.starRow}>
+                        {[1, 2, 3, 4, 5].map((star) => {
+                          const active = (hoverScore || ratingScore) >= star;
+                          return (
+                            <button
+                              key={star}
+                              type="button"
+                              onMouseEnter={() => setHoverScore(star)}
+                              onMouseLeave={() => setHoverScore(0)}
+                              onClick={() => handleSelectStar(star)}
+                              style={{
+                                ...styles.starBtn,
+                                color: active ? "#F59E0B" : "#D1D5DB",
+                                transform: active ? "scale(1.15)" : "scale(1)",
+                              }}
+                            >
+                              ★
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {(hoverScore > 0 || ratingScore > 0) && (
+                        <div style={styles.ratingLabelText}>
+                          {RATING_LABELS[hoverScore || ratingScore]}
+                        </div>
+                      )}
+
+                      {ratingScore > 0 && (
+                        <div style={styles.feedbackDetails}>
+                          <div style={styles.tagWrap}>
+                            {(ratingScore >= 4 ? POSITIVE_TAGS : NEGATIVE_TAGS).map((tag) => {
+                              const isSelected = selectedTags.includes(tag);
+                              return (
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  onClick={() => toggleFeedbackTag(tag)}
+                                  style={{
+                                    ...styles.tagChip,
+                                    backgroundColor: isSelected ? "#EFF6FF" : "#F9FAFB",
+                                    borderColor: isSelected ? "#1976D2" : "#E5E7EB",
+                                    color: isSelected ? "#1976D2" : "#4B5563",
+                                    fontWeight: isSelected ? "600" : "400",
+                                  }}
+                                >
+                                  {tag}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <input
+                            type="text"
+                            placeholder="Góp ý thêm (không bắt buộc)..."
+                            value={feedbackComment}
+                            onChange={(e) => setFeedbackComment(e.target.value)}
+                            style={styles.feedbackCommentInput}
+                          />
+
+                          <button type="button" onClick={handleSubmitFeedback} style={styles.feedbackSubmitBtn}>
+                            Gửi đánh giá
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
+
               <div ref={messagesEndRef} />
             </div>
 
@@ -775,6 +815,7 @@ const styles = {
     maxWidth: "80%",
     whiteSpace: "pre-wrap",
     wordBreak: "break-word",
+    overflowWrap: "anywhere",
     boxShadow: "0 1px 3px rgba(25,118,210,0.12)",
   },
   userBubble: {
@@ -788,6 +829,7 @@ const styles = {
     maxWidth: "80%",
     whiteSpace: "pre-wrap",
     wordBreak: "break-word",
+    overflowWrap: "anywhere",
   },
   suggestionBar: {
     padding: "4px 18px 8px",
@@ -977,24 +1019,100 @@ const styles = {
     textDecoration: "underline",
     cursor: "pointer",
   },
-  feedbackContainer: {
-    backgroundColor: "#F3F4F6",
-    borderRadius: "12px",
-    padding: "8px 12px",
+  feedbackCard: {
+    backgroundColor: "#FFFFFF",
+    border: "1px solid #E5E7EB",
+    borderRadius: "16px",
+    padding: "12px 14px",
+    margin: "10px 0",
+    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
     display: "flex",
-    alignItems: "center",
+    flexDirection: "column",
+    gap: "8px",
+  },
+  feedbackHeader: {
+    display: "flex",
     justifyContent: "space-between",
-    margin: "8px 0",
+    alignItems: "center",
   },
-  feedbackText: {
-    fontSize: "11.5px",
-    color: "#4B5563",
+  feedbackTitle: {
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "#1F2937",
   },
-  feedbackBtn: {
-    background: "#FFFFFF",
-    border: "1px solid #D1D5DB",
-    borderRadius: "6px",
-    padding: "3px 6px",
+  feedbackDismiss: {
+    background: "transparent",
+    border: "none",
+    color: "#9CA3AF",
+    fontSize: "12px",
     cursor: "pointer",
+    padding: "2px",
+  },
+  starRow: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "2px 0",
+  },
+  starBtn: {
+    background: "transparent",
+    border: "none",
+    fontSize: "24px",
+    cursor: "pointer",
+    padding: 0,
+    lineHeight: 1,
+    transition: "transform 0.15s ease, color 0.15s ease",
+  },
+  ratingLabelText: {
+    textAlign: "center",
+    fontSize: "11px",
+    fontWeight: "600",
+    color: "#D97706",
+  },
+  feedbackDetails: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+    marginTop: "2px",
+  },
+  tagWrap: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "5px",
+    justifyContent: "center",
+  },
+  tagChip: {
+    border: "1px solid #E5E7EB",
+    borderRadius: "12px",
+    padding: "4px 9px",
+    fontSize: "11px",
+    cursor: "pointer",
+    transition: "all 0.15s ease",
+  },
+  feedbackCommentInput: {
+    width: "100%",
+    padding: "7px 10px",
+    borderRadius: "8px",
+    border: "1px solid #D1D5DB",
+    fontSize: "11.5px",
+    outline: "none",
+    boxSizing: "border-box",
+  },
+  feedbackSubmitBtn: {
+    backgroundColor: "#1976D2",
+    color: "#FFFFFF",
+    border: "none",
+    borderRadius: "8px",
+    padding: "7px",
+    fontSize: "12px",
+    fontWeight: "600",
+    cursor: "pointer",
+  },
+  feedbackThanks: {
+    textAlign: "center",
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "#15803D",
+    padding: "6px 0",
   },
 };
