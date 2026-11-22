@@ -68,7 +68,7 @@ export default function LoginPage() {
       navigate("/admin/faq", { replace: true });
     } catch (err) {
       // Fallback khi BE chưa bật server nhưng nhập đúng duy nhất admin / Admin@123
-      if (username === "admin" && password === "Admin@123" && err.message.includes("fetch")) {
+      if (username === "admin" && password === "Admin@123456" && err.message.includes("fetch")) {
         localStorage.setItem("admin_jwt_token", "dev_fallback_admin_token");
         if (!localStorage.getItem("admin_profile")) {
           localStorage.setItem(
