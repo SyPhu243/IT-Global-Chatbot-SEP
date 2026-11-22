@@ -4,7 +4,7 @@ import pg from "pg";
 const { Pool } = pg;
 
 const NEON_CONNECTION_STRING =
-  "postgresql://neondb_owner:npg_mvUaus0KG9QV@ep-long-grass-azs1vn6a-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require";
+  "postgresql://neondb_owner:npg_mvUaus0KG9QV@ep-long-grass-azs1vn6a-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&uselibpqcompat=true";
 
 let connectionString = process.env.DATABASE_URL || NEON_CONNECTION_STRING;
 

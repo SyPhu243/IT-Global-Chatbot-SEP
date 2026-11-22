@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
+import AdminProfileHeader from "./AdminProfileHeader";
 
-// Lấy URL từ biến môi trường Vite hoặc mặc định localhost:5000
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export default function FAQManager() {
@@ -25,14 +25,17 @@ export default function FAQManager() {
     };
   };
 
-  // 1. GỌI API LẤY DANH SÁCH FAQ
+  const handleLogout = () => {
+    localStorage.removeItem("admin_jwt_token");
+    window.location.href = "/login";
+  };
+
   const fetchFaqs = async () => {
     try {
       setLoading(true);
       const res = await fetch(`${API_BASE_URL}/faqs`, { headers: getHeaders() });
       if (!res.ok) throw new Error("Không thể tải danh sách FAQ");
       const json = await res.json();
-      // Hỗ trợ nhiều kiểu trả về của BE: mảng trực tiếp, { data: [...] }, hoặc { faqs: [...] }
       const list = Array.isArray(json) ? json : json.data || json.faqs || [];
       setFaqs(list);
     } catch (err) {
@@ -46,7 +49,6 @@ export default function FAQManager() {
     fetchFaqs();
   }, []);
 
-  // Mở Modal Thêm / Sửa
   const handleOpenAddModal = () => {
     setEditingFaq(null);
     setFormData({ question: "", answer: "", category: "Dịch vụ" });
@@ -67,7 +69,6 @@ export default function FAQManager() {
     }, 200);
   };
 
-  // 2. GỌI API THÊM (POST) HOẶC SỬA (PUT)
   const handleSave = async (e) => {
     e.preventDefault();
     if (!formData.question.trim() || !formData.answer.trim()) return;
@@ -100,7 +101,6 @@ export default function FAQManager() {
     }
   };
 
-  // Mở & Đóng Modal Xóa
   const handleCloseDeleteModal = () => {
     setIsClosingDeleteModal(true);
     setTimeout(() => {
@@ -109,7 +109,6 @@ export default function FAQManager() {
     }, 200);
   };
 
-  // 3. GỌI API XÓA (DELETE)
   const handleConfirmDelete = async () => {
     const targetId = deleteId;
     handleCloseDeleteModal();
@@ -137,8 +136,6 @@ export default function FAQManager() {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#f8fafc", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
-      
-      {/* INJECT ANIMATION STYLES */}
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes modalZoomIn { from { opacity: 0; transform: scale(0.92) translateY(12px); } to { opacity: 1; transform: scale(1) translateY(0); } }
@@ -179,22 +176,20 @@ export default function FAQManager() {
           </a>
         </nav>
 
-        <div style={{ marginTop: "auto", padding: "20px", borderTop: "1px solid #1e293b", fontSize: "12px", color: "#64748b" }}>
-          IT-Global Chatbot System v1.0
+        <div style={{ marginTop: "auto", padding: "16px 20px", borderTop: "1px solid #1e293b", display: "flex", flexDirection: "column", gap: "10px" }}>
+          <button
+            onClick={handleLogout}
+            style={{ width: "100%", padding: "10px", backgroundColor: "#1e293b", color: "#f87171", border: "1px solid #334155", borderRadius: "8px", cursor: "pointer", fontWeight: "600", fontSize: "13px" }}
+          >
+            🚪 Đăng xuất
+          </button>
+          <span style={{ fontSize: "12px", color: "#64748b", textAlign: "center" }}>IT-Global Chatbot System v1.0</span>
         </div>
       </aside>
 
       {/* MAIN CONTENT AREA */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <header style={{ height: "64px", backgroundColor: "#fff", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
-          <div style={{ fontSize: "14px", color: "#64748b", fontWeight: "500" }}>
-            Dashboard / <span style={{ color: "#0f172a", fontWeight: "600" }}>Quản Lý FAQ</span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <span style={{ fontSize: "14px", color: "#334155", fontWeight: "600" }}>Lê Nhất Sinh</span>
-            <div style={{ width: "36px", height: "36px", borderRadius: "50%", backgroundColor: "#eff6ff", border: "1px solid #bfdbfe", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", color: "#2563eb" }}>S</div>
-          </div>
-        </header>
+       <AdminProfileHeader breadcrumb="Quản Lý FAQ" />
 
         <div className="animate-fade-in" style={{ padding: "32px", flex: 1 }}>
           <div style={{ backgroundColor: "#fff", borderRadius: "16px", padding: "24px 28px", boxShadow: "0 4px 20px -2px rgba(0,0,0,0.05)", border: "1px solid #f1f5f9", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>

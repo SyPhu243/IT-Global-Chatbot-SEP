@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import AdminProfileHeader from "./AdminProfileHeader";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -20,7 +21,11 @@ export default function SessionList() {
     };
   };
 
-  // 1. GỌI API LẤY DANH SÁCH SESSIONS
+  const handleLogout = () => {
+    localStorage.removeItem("admin_jwt_token");
+    window.location.href = "/login";
+  };
+
   const fetchSessions = async () => {
     try {
       setLoading(true);
@@ -40,10 +45,8 @@ export default function SessionList() {
     fetchSessions();
   }, []);
 
-  // 2. GỌI API LẤY CHI TIẾT TIN NHẮN KHI MỞ DRAWER
   const handleOpenDetail = async (session) => {
     setSelectedSession(session);
-    // Nếu object session từ API đã nhúng sẵn mảng messages thì dùng luôn, không thì gọi API chi tiết
     if (Array.isArray(session.messages) && session.messages.length > 0) {
       setSessionMessages(session.messages);
       return;
@@ -117,22 +120,20 @@ export default function SessionList() {
           </a>
         </nav>
 
-        <div style={{ marginTop: "auto", padding: "20px", borderTop: "1px solid #1e293b", fontSize: "12px", color: "#64748b" }}>
-          IT-Global Chatbot System v1.0
+        <div style={{ marginTop: "auto", padding: "16px 20px", borderTop: "1px solid #1e293b", display: "flex", flexDirection: "column", gap: "10px" }}>
+          <button
+            onClick={handleLogout}
+            style={{ width: "100%", padding: "10px", backgroundColor: "#1e293b", color: "#f87171", border: "1px solid #334155", borderRadius: "8px", cursor: "pointer", fontWeight: "600", fontSize: "13px" }}
+          >
+            🚪 Đăng xuất
+          </button>
+          <span style={{ fontSize: "12px", color: "#64748b", textAlign: "center" }}>IT-Global Chatbot System v1.0</span>
         </div>
       </aside>
 
       {/* MAIN CONTENT AREA */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <header style={{ height: "64px", backgroundColor: "#fff", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px" }}>
-          <div style={{ fontSize: "14px", color: "#64748b", fontWeight: "500" }}>
-            Dashboard / <span style={{ color: "#0f172a", fontWeight: "600" }}>Quản Lý Session Hội Thoại</span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <span style={{ fontSize: "14px", color: "#334155", fontWeight: "600" }}>Lê Nhất Sinh</span>
-            <div style={{ width: "36px", height: "36px", borderRadius: "50%", backgroundColor: "#eff6ff", border: "1px solid #bfdbfe", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", color: "#2563eb" }}>S</div>
-          </div>
-        </header>
+      <AdminProfileHeader breadcrumb="Quản Lý Session Hội Thoại" />
 
         <div className="animate-fade-in" style={{ padding: "32px", flex: 1 }}>
           <div style={{ backgroundColor: "#fff", borderRadius: "16px", padding: "24px 28px", boxShadow: "0 4px 20px -2px rgba(0,0,0,0.05)", border: "1px solid #f1f5f9", marginBottom: "24px" }}>
