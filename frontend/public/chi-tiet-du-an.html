@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chi tiết dự án - IT-Global</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #f8fafc; color: #1e293b; line-height: 1.6; }
+    header { background: #6b7280; padding: 16px 40px; display: flex; align-items: center; justify-content: space-between; }
+    .logo { background: #fff; color: #0f172a; font-weight: 800; width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 13px; }
+    nav { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+    nav a { color: #e2e8f0; text-decoration: none; font-size: 14px; font-weight: 500; }
+    nav a.active { color: #fff; border-bottom: 2px solid #ef4444; padding-bottom: 4px; }
+    nav a.btn-contact { background: #ff5b5b; color: #fff; padding: 10px 22px; border-radius: 6px; font-weight: 600; }
+    .container { max-width: 960px; margin: 40px auto; padding: 0 20px 60px; }
+    .back-link { display: inline-block; margin-bottom: 20px; color: #2563eb; text-decoration: none; font-weight: 600; font-size: 14px; }
+    .back-link:hover { text-decoration: underline; }
+    .card { background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0; }
+    .hero-img { width: 100%; height: 340px; object-fit: cover; display: block; background: #e2e8f0; }
+    .content { padding: 36px; }
+    .badge { display: inline-block; background: #eff6ff; color: #2563eb; padding: 4px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; margin-bottom: 12px; }
+    h1 { font-size: 28px; color: #0f172a; margin-bottom: 14px; }
+    .meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; padding: 18px; background: #f8fafc; border-radius: 12px; margin: 20px 0 28px; border: 1px solid #e2e8f0; }
+    .meta-item span { display: block; font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 600; }
+    .meta-item strong { font-size: 15px; color: #0f172a; }
+    h2 { font-size: 18px; color: #0f172a; margin: 24px 0 10px; }
+    ul { padding-left: 20px; color: #334155; }
+    ul li { margin-bottom: 8px; }
+    .note { margin-top: 28px; padding: 14px 16px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; font-size: 13px; color: #92400e; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/index.html" class="logo">IT-G</a>
+    <nav>
+      <a href="/index.html">TRANG CHỦ</a>
+      <a href="/ve-chung-toi.html">GIỚI THIỆU</a>
+      <a href="/du-an.html" class="active">DỰ ÁN THÀNH CÔNG</a>
+      <a href="/hoi-dap.html">HỎI ĐÁP</a>
+      <a href="/lien-he.html" class="btn-contact">LIÊN HỆ</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <a href="/du-an.html" class="back-link">← Quay lại danh sách dự án</a>
+    <article class="card" id="project-detail"></article>
+  </main>
+
+  <script>
+    const PROJECTS = {
+      "1": {
+        title: "Hồ Sơ Điện Tử",
+        category: "Giáo dục / Quản lý đào tạo",
+        client: "Hệ thống Cổng sinh viên",
+        tech: "Vue.js, Laravel, PostgreSQL",
+        year: "2024",
+        image: "https://placehold.co/960x340/eff6ff/1d4ed8?text=Ho+So+Dien+Tu",
+        summary: "Hồ sơ điện tử sinh viên là website hỗ trợ sinh viên đăng ký kế hoạch học tập, đăng ký môn học, quản lý điểm học tập cũng như lịch học trực tuyến.",
+        features: [
+          "Đăng ký kế hoạch học tập và tín chỉ môn học trực tuyến.",
+          "Tra cứu điểm học tập, điểm tích lũy và lịch học theo học kỳ.",
+          "Quản lý hồ sơ sinh viên tập trung, phân quyền rõ ràng.",
+          "Giao diện thân thiện, hỗ trợ truy cập trên máy tính và điện thoại."
+        ]
+      },
+      "2": {
+        title: "Thuê xe miền nam",
+        category: "Dịch vụ vận tải & Đặt xe",
+        client: "Thuexemiennam",
+        tech: "React, Node.js, MySQL",
+        year: "2024",
+        image: "https://placehold.co/960x340/ecfeff/0369a1?text=Thue+Xe+Mien+Nam",
+        summary: "Thuexemiennam là đơn vị tiên phong cung cấp các dịch vụ thuê xe mang lại trải nghiệm tốt nhất cho khách hàng khi di chuyển.",
+        features: [
+          "Danh mục đa dạng các dòng xe kèm bảng giá minh bạch.",
+          "Đặt xe trực tuyến nhanh chóng và nhận báo giá theo lộ trình.",
+          "Quản lý lịch xe trống và điều phối tài xế linh hoạt.",
+          "Tối ưu hiển thị trên di động giúp khách đặt xe mọi lúc."
+        ]
+      },
+      "3": {
+        title: "Hiếu Táo Store",
+        category: "Thương mại điện tử (E-commerce)",
+        client: "Hiếu Táo Store",
+        tech: "Vue.js, Laravel, REST API",
+        year: "2025",
+        image: "https://placehold.co/960x340/f1f5f9/0f172a?text=Hieu+Tao+Store",
+        summary: "Hiếu Táo là cửa hàng bán lẻ chuyên về các dòng sản phẩm của Apple, mang đến trải nghiệm mua sắm trực tuyến trực quan và sản phẩm chất lượng.",
+        features: [
+          "Hiển thị và lọc sản phẩm Apple theo dòng máy, dung lượng, màu sắc.",
+          "Giỏ hàng, đặt hàng nhanh và theo dõi trạng thái đơn hàng.",
+          "So sánh thông số kỹ thuật và tra cứu chính sách bảo hành.",
+          "Trang quản trị sản phẩm và tồn kho dễ sử dụng."
+        ]
+      },
+      "4": {
+        title: "Camera Phương Nghi",
+        category: "Thiết bị an ninh & Giám sát",
+        client: "Camera Phương Nghi",
+        tech: "HTML/CSS, JavaScript, PHP",
+        year: "2025",
+        image: "https://placehold.co/960x340/fef2f2/b91c1c?text=Camera+Phuong+Nghi",
+        summary: "Các sản phẩm và giải pháp của Camera Phương Nghi giúp việc giám sát không chỉ dừng lại ở giám sát nội bộ trong phạm vi hẹp mà còn có thể giám sát từ xa.",
+        features: [
+          "Giới thiệu trọn bộ thiết bị và giải pháp camera giám sát từ xa.",
+          "Tư vấn gói lắp đặt phù hợp cho gia đình, cửa hàng và doanh nghiệp.",
+          "Form đăng ký khảo sát và báo giá nhanh trực tiếp trên website.",
+          "Tài liệu hướng dẫn sử dụng và hỗ trợ kỹ thuật trực tuyến."
+        ]
+      }
+    };
+
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id") || "1";
+    const project = PROJECTS[id] || PROJECTS["1"];
+
+    document.title = `${project.title} - IT-Global`;
+    document.getElementById("project-detail").innerHTML = `
+      <img class="hero-img" src="${project.image}" alt="${project.title}" />
+      <div class="content">
+        <span class="badge">${project.category}</span>
+        <h1>${project.title}</h1>
+        <p>${project.summary}</p>
+        <div class="meta">
+          <div class="meta-item"><span>Khách hàng</span><strong>${project.client}</strong></div>
+          <div class="meta-item"><span>Công nghệ</span><strong>${project.tech}</strong></div>
+          <div class="meta-item"><span>Năm triển khai</span><strong>${project.year}</strong></div>
+        </div>
+        <h2>Tính năng nổi bật</h2>
+        <ul>${project.features.map(f => `<li>${f}</li>`).join("")}</ul>
+        <div class="note">
+          <strong>Lưu ý:</strong> Nội dung chi tiết đang sử dụng dữ liệu mẫu (Mock-Data) phục vụ kiểm thử luồng điều hướng và tích hợp Chatbot. Dữ liệu và hình ảnh chính thức sẽ do IT-Global cập nhật khi triển khai thực tế.
+        </div>
+      </div>
+    `;
+  </script>
+
+  <!-- Nhúng Chatbot Widget của nhóm -->
+  <script src="/itglobal-chatbot.js" defer></script>
+</body>
+</html>
