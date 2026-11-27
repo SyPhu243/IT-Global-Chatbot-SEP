@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import AdminProfileHeader from "./AdminProfileHeader";
+import { Link, useNavigate } from "react-router-dom";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export default function FAQManager() {
+  const navigate = useNavigate();
   const [faqs, setFaqs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,7 +29,7 @@ export default function FAQManager() {
 
   const handleLogout = () => {
     localStorage.removeItem("admin_jwt_token");
-    window.location.href = "/login";
+    navigate("/login");
   };
 
   const fetchFaqs = async () => {
@@ -168,12 +170,12 @@ export default function FAQManager() {
         </div>
 
         <nav style={{ padding: "20px 12px", display: "flex", flexDirection: "column", gap: "6px" }}>
-          <a href="/admin/faq" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", backgroundColor: "#2563eb", color: "#fff", borderRadius: "10px", textDecoration: "none", fontWeight: "600", fontSize: "14px", boxShadow: "0 4px 12px rgba(37,99,235,0.3)" }}>
+          <Link to="/admin/faq" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", backgroundColor: "#2563eb", color: "#fff", borderRadius: "10px", textDecoration: "none", fontWeight: "600", fontSize: "14px", boxShadow: "0 4px 12px rgba(37,99,235,0.3)" }}>
             <span>❓</span> Quản Lý FAQ 
-          </a>
-          <a href="/admin/sessions" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", color: "#94a3b8", borderRadius: "10px", textDecoration: "none", fontWeight: "500", fontSize: "14px", transition: "all 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#1e293b"} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}>
+          </Link>
+          <Link to="/admin/sessions" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", color: "#94a3b8", borderRadius: "10px", textDecoration: "none", fontWeight: "500", fontSize: "14px", transition: "all 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#1e293b"} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}>
             <span>💬</span> Quản Lý Hội Thoại 
-          </a>
+          </Link>
         </nav>
 
         <div style={{ marginTop: "auto", padding: "16px 20px", borderTop: "1px solid #1e293b", display: "flex", flexDirection: "column", gap: "10px" }}>
