@@ -29663,9 +29663,9 @@ var render = function () {
               _c("div", { staticClass: "card" }, [
                 _c("div", { staticClass: "card-img-top" }, [
                   _c("img", {
-                    staticClass: "image-vlu",
+                    style: { width: "100%", height: "160px", objectFit: "cover", display: "block" },
                     attrs: {
-                      src: "https://tancool.net/public/homestudent/images/vlu.png",
+                      src: "https://placehold.co/600x360/eff6ff/1d4ed8?text=Ho+So+Dien+Tu",
                       alt: "Card image cap",
                     },
                   }),
@@ -29690,8 +29690,7 @@ var render = function () {
                       {
                         staticClass: "btn btn-primary",
                         attrs: {
-                          href: "https://tancool.net/",
-                          target: "_blank",
+                          href: "/chi-tiet-du-an.html?id=1",
                         },
                       },
                       [_vm._v("Xem chi tiết →")]
@@ -29705,8 +29704,7 @@ var render = function () {
               _c("div", { staticClass: "card" }, [
                 _c("div", { staticClass: "card-img-top" }, [
                   _c("img", {
-                    attrs: {
-                      src: "https://thuexemiennam.com/public/admin/images/logo/logo.png",
+                    style: { width: "100%", height: "160px", objectFit: "cover", display: "block" }, attrs: { src: "https://placehold.co/600x360/ecfeff/0369a1?text=Thue+Xe+Mien+Nam",
                       alt: "Card image cap",
                     },
                   }),
@@ -29731,8 +29729,7 @@ var render = function () {
                       {
                         staticClass: "btn btn-primary",
                         attrs: {
-                          href: "https://cameraphuongnghi.com/",
-                          target: "_blank",
+                          href: "/chi-tiet-du-an.html?id=2",
                         },
                       },
                       [_vm._v("Xem chi tiết →")]
@@ -29746,9 +29743,9 @@ var render = function () {
               _c("div", { staticClass: "card" }, [
                 _c("div", { staticClass: "card-img-top" }, [
                   _c("img", {
-                    staticClass: "size-image",
+                    style: { width: "100%", height: "160px", objectFit: "cover", display: "block" },
                     attrs: {
-                      src: "https://www.hieutao.com/public/images/logo.jpg",
+                      src: "https://placehold.co/600x360/f1f5f9/0f172a?text=Hieu+Tao+Store",
                       alt: "Card image cap",
                     },
                   }),
@@ -29773,8 +29770,7 @@ var render = function () {
                       {
                         staticClass: "btn btn-primary",
                         attrs: {
-                          href: "https://hieutao.com/",
-                          target: "_blank",
+                          href: "/chi-tiet-du-an.html?id=3",
                         },
                       },
                       [_vm._v("Xem chi tiết →")]
@@ -29788,9 +29784,9 @@ var render = function () {
               _c("div", { staticClass: "card" }, [
                 _c("div", { staticClass: "card-img-top" }, [
                   _c("img", {
-                    staticClass: "img-top",
+                    style: { width: "100%", height: "160px", objectFit: "cover", display: "block" },
                     attrs: {
-                      src: "https://cameraphuongnghi.com/public/images/logo.jpg",
+                      src: "https://placehold.co/600x360/fef2f2/b91c1c?text=Camera+Phuong+Nghi",
                       alt: "Card image cap",
                     },
                   }),
@@ -29803,7 +29799,7 @@ var render = function () {
                   _vm._v(" "),
                   _c("p", { staticClass: "card-text" }, [
                     _vm._v(
-                      "\n                            Các sản phẩm và giải pháp của Camera Phuowng Nghi thì việc giám sát của quý khách giờ đây sẽ không chỉ dừng\n                            lại ở giám sát nội bộ, giám sát trong phạm vi hẹp mà còn có thể giám sát từ xa.\n                        "
+                      "\n                            Các sản phẩm và giải pháp của Camera Ph??ng Nghi thì việc giám sát của quý khách giờ đây sẽ không chỉ dừng\n                            lại ở giám sát nội bộ, giám sát trong phạm vi hẹp mà còn có thể giám sát từ xa.\n                        "
                     ),
                   ]),
                 ]),
@@ -29815,8 +29811,7 @@ var render = function () {
                       {
                         staticClass: "btn btn-primary",
                         attrs: {
-                          href: "https://cameraphuongnghi.com/",
-                          target: "_blank",
+                          href: "/chi-tiet-du-an.html?id=4",
                         },
                       },
                       [_vm._v("Xem chi tiết →")]
