@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const MODEL_NAME = "gemini-flash-latest";
+const MODEL_NAME = "gemini-3.5-flash-lite";
 const MAX_HISTORY = 4; 
 const FALLBACK_REPLY = "Xin lỗi, hệ thống đang bận. Vui lòng thử lại sau.";
 let model = null;

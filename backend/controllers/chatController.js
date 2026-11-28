@@ -1,12 +1,16 @@
-import { findSessionById } from "../models/sessionModel.js";
+import { findSessionById, createSessionWithId } from "../models/sessionModel.js";
 import { createMessage, getMessagesBySession } from "../models/messageModel.js";
 import { generateBotReply } from "../services/chatService.js";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_MESSAGE_LENGTH = 2000;
+const AGENT_ACK_TEXT =
+    "Cảm ơn quý khách! Tin nhắn đã được chuyển đến nhân viên tư vấn IT-Global. " +
+    "Nhân viên sẽ phản hồi trong thời gian sớm nhất qua thông tin bạn đã đăng ký " +
+    "(hoặc liên hệ trực tiếp Hotline/Zalo: +84 987.613.161).";
 
 export async function sendChatMessage(req, res) {
-    const { sessionId, message } = req.body ?? {};
+    const { sessionId, message, mode = "ai" } = req.body ?? {};
     const errors = [];
 
     if (typeof sessionId !== "string" || !UUID_REGEX.test(sessionId)) {
@@ -24,28 +28,63 @@ export async function sendChatMessage(req, res) {
     }
 
     try {
-        const session = await findSessionById(sessionId);
+        // Tự động tạo session trong DB nếu chưa tồn tại (tránh lỗi 404 khiến không lưu được hội thoại)
+        let session = await findSessionById(sessionId);
         if (!session) {
-            return res
-                .status(404)
-                .json({ status: "error", message: "Không tìm thấy session" });
+            const clientIp =
+                req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+                req.socket?.remoteAddress ||
+                req.ip ||
+                "unknown";
+            session = await createSessionWithId(sessionId, clientIp);
         }
 
-        // Lấy lịch sử cũ (chưa gồm tin nhắn mới) để làm ngữ cảnh cho AI
+        // Lấy lịch sử cũ (chưa gồm tin nhắn mới) để làm ngữ cảnh cho AI / kiểm tra đã xác nhận nhân viên chưa
         const history = await getMessagesBySession(sessionId);
-        console.log("CHAT HISTORY:", JSON.stringify(history, null, 2));
 
-        // 1. Lưu tin nhắn của user
+        // 1. Luôn lưu tin nhắn của user vào bảng messages
         const userMessage = await createMessage({
             sessionId,
             sender: "user",
             content: message.trim(),
         });
 
-        // 2. Chuyển tiếp cho service để lấy câu trả lời thật từ Gemini
+        // 2. Nhánh "Chat với nhân viên" -> Không gọi Gemini AI, chỉ xác nhận 1 lần đầu
+        if (mode === "agent") {
+            const alreadyAcked = history.some(
+                (msg) => msg.sender === "bot" && msg.content === AGENT_ACK_TEXT
+            );
+
+            if (alreadyAcked) {
+                return res.status(200).json({
+                    status: "success",
+                    data: {
+                        reply: null,
+                        userMessage,
+                        botMessage: null,
+                    },
+                });
+            }
+
+            const botMessage = await createMessage({
+                sessionId,
+                sender: "bot",
+                content: AGENT_ACK_TEXT,
+            });
+
+            return res.status(200).json({
+                status: "success",
+                data: {
+                    reply: botMessage.content,
+                    userMessage,
+                    botMessage,
+                },
+            });
+        }
+
+        // 3. Nhánh "Chat với AI" -> Chạy luồng FAQ Cache + RAG + Gemini bình thường
         const replyText = await generateBotReply(message.trim(), history);
 
-        // 3. Lưu câu trả lời của bot
         const botMessage = await createMessage({
             sessionId,
             sender: "bot",

@@ -15,3 +15,14 @@ export async function findSessionById(id) {
     );
     return rows[0] ?? null;
 }
+
+export async function createSessionWithId(id, ipAddress) {
+    const { rows } = await pool.query(
+        `INSERT INTO sessions (id, ip_address)
+         VALUES ($1, $2)
+         ON CONFLICT (id) DO NOTHING
+         RETURNING id, ip_address, created_at`,
+        [id, ipAddress]
+    );
+    return rows[0] ?? (await findSessionById(id));
+}

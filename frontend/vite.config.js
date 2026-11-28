@@ -13,7 +13,7 @@ export default defineConfig({
   },
   build: {
     lib: {
-      entry: path.resolve(import.meta.dirname, 'src/main.jsx'),
+      entry: path.resolve(import.meta.dirname, 'src/widget-embed.jsx'),
       name: 'ITGlobalChatbot',
       fileName: () => 'itglobal-chatbot.js',
       formats: ['iife'],
