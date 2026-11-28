@@ -31,11 +31,25 @@ export default function SessionList() {
   const fetchSessions = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE_URL}/sessions`, { headers: getHeaders() });
+      const res = await fetch(`${API_BASE_URL}/admin/conversations?limit=50`, {
+        headers: getHeaders(),
+      });
       if (!res.ok) throw new Error("Không thể tải danh sách Session");
       const json = await res.json();
-      const list = Array.isArray(json) ? json : json.data || json.sessions || [];
-      setSessions(list);
+      const rawList = Array.isArray(json) ? json : json.data || json.sessions || [];
+
+      // Chuẩn hóa tên trường từ Backend (session_id, total_messages) cho khớp giao diện
+      const normalized = rawList.map((item) => ({
+        ...item,
+        id: item.id || item.session_id,
+        ip_address: item.ip_address || item.ipAddress || "N/A",
+        created_at: item.created_at
+          ? new Date(item.created_at).toLocaleString("vi-VN")
+          : "N/A",
+        message_count: item.total_messages ?? item.message_count ?? item.messageCount ?? 0,
+      }));
+
+      setSessions(normalized);
     } catch (err) {
       console.error("Lỗi fetchSessions:", err);
     } finally {
@@ -135,7 +149,7 @@ export default function SessionList() {
 
       {/* MAIN CONTENT AREA */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-      <AdminProfileHeader breadcrumb="Quản Lý Session Hội Thoại" />
+      <AdminProfileHeader breadcrumb="Quản Lý Hội Thoại" />
 
         <div className="animate-fade-in" style={{ padding: "32px", flex: 1 }}>
           <div style={{ backgroundColor: "#fff", borderRadius: "16px", padding: "24px 28px", boxShadow: "0 4px 20px -2px rgba(0,0,0,0.05)", border: "1px solid #f1f5f9", marginBottom: "24px" }}>
@@ -222,7 +236,7 @@ export default function SessionList() {
           <div className={isClosingModal ? "drawer-exit" : "drawer-enter"} style={{ backgroundColor: "#fff", width: "460px", height: "100%", boxShadow: "-10px 0 30px rgba(0,0,0,0.15)", display: "flex", flexDirection: "column" }}>
             <div style={{ padding: "20px 24px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#f8fafc" }}>
               <div>
-                <h3 style={{ margin: "0 0 4px 0", fontSize: "17px", fontWeight: "700", color: "#0f172a" }}>Chi Tiết Session Hội Thoại</h3>
+                <h3 style={{ margin: "0 0 4px 0", fontSize: "17px", fontWeight: "700", color: "#0f172a" }}>Chi Tiết Hội Thoại</h3>
                 <span style={{ fontSize: "12px", fontFamily: "monospace", color: "#64748b" }}>ID: {selectedSession.id}</span>
               </div>
               <button onClick={handleCloseModal} style={{ border: "none", background: "none", fontSize: "20px", color: "#94a3b8", cursor: "pointer" }}>✕</button>
@@ -242,7 +256,7 @@ export default function SessionList() {
                   return (
                     <div key={msg.id || idx} style={{ display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
                       <span style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px" }}>
-                        {isUser ? "Khách hàng" : "Chatbot AI"} • {msg.time || msg.created_at || ""}
+                        {isUser ? "Khách hàng" : "Chatbot AI"} • {msg.time || (msg.created_at ? new Date(msg.created_at).toLocaleString("vi-VN") : "")}
                       </span>
                       <div className="msg-wrap" style={{ 
                         padding: "10px 16px", 

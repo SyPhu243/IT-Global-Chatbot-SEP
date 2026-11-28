@@ -28,29 +28,3 @@ QUY TRÌNH LÀM VIỆC TẠI IT-GLOBAL
 3. Ký kết hợp đồng: Thống nhất các điều khoản và tiến độ.
 4. Triển khai dự án: Khách hàng được theo dõi tiến độ qua hệ thống quản lý dự án (Jira/Trello).
 5. Nghiệm thu và Bảo hành: Bàn giao sản phẩm, hướng dẫn sử dụng và bảo hành miễn phí 12 tháng.
-
-CÁC CÂU HỎI THƯỜNG GẶP (FAQ) ĐỂ HỖ TRỢ TƯ VẤN
-
-Q: Công ty IT-Global làm về lĩnh vực gì?
-A: IT-Global chuyên cung cấp các giải pháp gia công phần mềm (Software Outsourcing) và thiết kế website chuyên nghiệp cho doanh nghiệp.
-
-Q: Làm sao để liên hệ với công ty IT-Global? Cho tôi số điện thoại công ty?
-A: Quý khách có thể liên hệ với IT-Global qua Hotline/Zalo số +84 987.613.161 hoặc gửi Email đến info@it-global.net.
-
-Q: Địa chỉ công ty IT-Global ở đâu?
-A: Trụ sở của IT-Global tọa lạc tại 2/1/15 đường 40, F Hiệp Bình Chánh, Tp. Thủ Đức.
-
-Q: Chi phí thiết kế website của IT-Global là bao nhiêu?
-A: Chi phí thiết kế website phụ thuộc vào loại hình:
-- Website giới thiệu công ty (Landing Page): Từ 5.000.000 VNĐ.
-- Website Tin tức / Báo chí: Từ 12.000.000 VNĐ.
-- Website Thương mại điện tử (bán hàng): Từ 15.000.000 VNĐ.
-
-Q: Dịch vụ gia công phần mềm (Outsourcing) của công ty có đắt không? Bảng giá phần mềm?
-A: Tùy thuộc vào quy mô dự án. Hệ thống Quản lý Doanh nghiệp (ERP/CRM) có giá từ 50.000.000 VNĐ, ứng dụng di động (Mobile App iOS/Android) từ 30.000.000 VNĐ. Các phần mềm đặc thù như Y tế/Bệnh viện sẽ được khảo sát và báo giá riêng.
-
-Q: Quy trình làm việc của công ty khi nhận dự án như thế nào?
-A: Quy trình gồm 5 bước: (1) Tiếp nhận yêu cầu -> (2) Tư vấn & Báo giá -> (3) Ký hợp đồng -> (4) Triển khai dự án qua Trello/Jira -> (5) Nghiệm thu và Bảo hành.
-
-Q: Sản phẩm của IT-Global có được bảo hành không? Thời gian bảo hành bao lâu?
-A: Có, tất cả các sản phẩm phần mềm và website do IT-Global phát triển đều được bàn giao kèm hướng dẫn sử dụng và bảo hành miễn phí 12 tháng.

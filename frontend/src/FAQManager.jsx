@@ -3,6 +3,7 @@ import AdminProfileHeader from "./AdminProfileHeader";
 import { Link, useNavigate } from "react-router-dom";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const DEFAULT_CATEGORIES = ["Dịch vụ", "Chi phí", "Quy trình", "Bảo hành", "Liên hệ", "Khác"];
 
 export default function FAQManager() {
   const navigate = useNavigate();
@@ -12,12 +13,20 @@ export default function FAQManager() {
   const [isClosingModal, setIsClosingModal] = useState(false);
   const [editingFaq, setEditingFaq] = useState(null);
   const [formData, setFormData] = useState({ question: "", answer: "", category: "Dịch vụ" });
-  
+
   const [deleteId, setDeleteId] = useState(null);
   const [isClosingDeleteModal, setIsClosingDeleteModal] = useState(false);
   const [deletingRowId, setDeletingRowId] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Gộp danh sách phân loại mặc định + các phân loại đang có trong DB
+  const categoryOptions = Array.from(
+    new Set([
+      ...DEFAULT_CATEGORIES,
+      ...faqs.map((f) => f.category).filter(Boolean),
+    ])
+  );
 
   const getHeaders = () => {
     const token = localStorage.getItem("admin_jwt_token");
@@ -120,7 +129,7 @@ export default function FAQManager() {
         headers: getHeaders(),
       });
       if (!res.ok) throw new Error("Xóa FAQ thất bại");
-      
+
       setDeletingRowId(targetId);
       setTimeout(() => {
         setFaqs((prev) => prev.filter((item) => item.id !== targetId));
@@ -131,9 +140,11 @@ export default function FAQManager() {
     }
   };
 
-  const filteredFaqs = faqs.filter(item => 
-    (item.question || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.answer || "").toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredFaqs = faqs.filter(
+    (item) =>
+      (item.question || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.answer || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.category || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -171,10 +182,10 @@ export default function FAQManager() {
 
         <nav style={{ padding: "20px 12px", display: "flex", flexDirection: "column", gap: "6px" }}>
           <Link to="/admin/faq" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", backgroundColor: "#2563eb", color: "#fff", borderRadius: "10px", textDecoration: "none", fontWeight: "600", fontSize: "14px", boxShadow: "0 4px 12px rgba(37,99,235,0.3)" }}>
-            <span>❓</span> Quản Lý FAQ 
+            <span>❓</span> Quản Lý FAQ
           </Link>
-          <Link to="/admin/sessions" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", color: "#94a3b8", borderRadius: "10px", textDecoration: "none", fontWeight: "500", fontSize: "14px", transition: "all 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#1e293b"} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}>
-            <span>💬</span> Quản Lý Hội Thoại 
+          <Link to="/admin/sessions" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", color: "#94a3b8", borderRadius: "10px", textDecoration: "none", fontWeight: "500", fontSize: "14px", transition: "all 0.2s" }} onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#1e293b")} onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}>
+            <span>💬</span> Quản Lý Hội Thoại
           </Link>
         </nav>
 
@@ -191,7 +202,7 @@ export default function FAQManager() {
 
       {/* MAIN CONTENT AREA */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-       <AdminProfileHeader breadcrumb="Quản Lý FAQ" />
+        <AdminProfileHeader breadcrumb="Quản Lý FAQ" />
 
         <div className="animate-fade-in" style={{ padding: "32px", flex: 1 }}>
           <div style={{ backgroundColor: "#fff", borderRadius: "16px", padding: "24px 28px", boxShadow: "0 4px 20px -2px rgba(0,0,0,0.05)", border: "1px solid #f1f5f9", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -206,9 +217,9 @@ export default function FAQManager() {
 
           <div style={{ backgroundColor: "#fff", borderRadius: "16px", boxShadow: "0 4px 20px -2px rgba(0,0,0,0.05)", border: "1px solid #f1f5f9", overflow: "hidden" }}>
             <div style={{ padding: "18px 24px", borderBottom: "1px solid #f1f5f9", backgroundColor: "#fff" }}>
-              <input 
-                type="text" 
-                placeholder="🔍 Tìm kiếm câu hỏi hoặc nội dung trả lời..." 
+              <input
+                type="text"
+                placeholder="🔍 Tìm kiếm câu hỏi, câu trả lời hoặc phân loại..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 style={{ width: "340px", padding: "10px 16px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "13.5px", outline: "none" }}
@@ -270,13 +281,41 @@ export default function FAQManager() {
             </div>
             <form onSubmit={handleSave}>
               <div style={{ marginBottom: "18px" }}>
-                <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", fontWeight: "600", color: "#334155" }}>Câu hỏi (Question):</label>
-                <input style={{ width: "100%", padding: "11px 14px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box" }} value={formData.question} onChange={(e) => setFormData({ ...formData, question: e.target.value })} required />
+                <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", fontWeight: "600", color: "#334155" }}>Câu hỏi:</label>
+                <input
+                  style={{ width: "100%", padding: "11px 14px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box" }}
+                  value={formData.question}
+                  onChange={(e) => setFormData({ ...formData, question: e.target.value })}
+                  required
+                />
               </div>
+
+              <div style={{ marginBottom: "18px" }}>
+                <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", fontWeight: "600", color: "#334155" }}>Phân loại:</label>
+                <select
+                  style={{ width: "100%", padding: "11px 14px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box", backgroundColor: "#fff", cursor: "pointer" }}
+                  value={formData.category || "Dịch vụ"}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                >
+                  {categoryOptions.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div style={{ marginBottom: "24px" }}>
-                <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", fontWeight: "600", color: "#334155" }}>Nội dung trả lời (Answer):</label>
-                <textarea style={{ width: "100%", padding: "11px 14px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box", fontFamily: "inherit" }} rows={4} value={formData.answer} onChange={(e) => setFormData({ ...formData, answer: e.target.value })} required />
+                <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", fontWeight: "600", color: "#334155" }}>Nội dung trả lời:</label>
+                <textarea
+                  style={{ width: "100%", padding: "11px 14px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box", fontFamily: "inherit" }}
+                  rows={4}
+                  value={formData.answer}
+                  onChange={(e) => setFormData({ ...formData, answer: e.target.value })}
+                  required
+                />
               </div>
+
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
                 <button type="button" onClick={handleCloseModal} style={{ padding: "10px 18px", borderRadius: "10px", border: "1px solid #cbd5e1", backgroundColor: "#fff", color: "#475569", cursor: "pointer", fontWeight: "600" }}>Hủy</button>
                 <button type="submit" className="btn-hover" style={{ padding: "10px 22px", borderRadius: "10px", border: "none", backgroundColor: "#2563eb", color: "#fff", cursor: "pointer", fontWeight: "600" }}>Lưu thay đổi</button>

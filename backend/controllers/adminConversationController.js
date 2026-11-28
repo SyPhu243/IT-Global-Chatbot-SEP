@@ -77,8 +77,10 @@ export async function getConversations(req, res, next) {
             });
         }
 
-        const params = [];
-        const conditions = [];
+       const params = [];
+        const conditions = [
+            "EXISTS (SELECT 1 FROM messages m2 WHERE m2.session_id = s.id)"
+        ];
 
         // Lọc theo ngày tạo session
         if (startDate) {
@@ -168,7 +170,6 @@ export async function getConversations(req, res, next) {
             LIMIT ${limitPlaceholder}
             OFFSET ${offsetPlaceholder}
         `;
-
         const dataResult = await pool.query(
             dataSql,
             dataParams

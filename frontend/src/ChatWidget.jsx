@@ -127,7 +127,36 @@ export default function ChatWidget() {
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
-  const initChatSession = async (userInfo) => {
+ const initChatSession = async (userInfo) => {
+    const savedSessionId = localStorage.getItem("chat_session_id");
+
+    // 1. Nếu đã có sessionId trong localStorage -> giữ nguyên và tải lại tin nhắn cũ
+    if (savedSessionId && UUID_REGEX.test(savedSessionId)) {
+      setSessionId(savedSessionId);
+      try {
+        const histRes = await axios.get(`/api/sessions/${savedSessionId}/messages`);
+        const oldMessages = histRes.data?.data || histRes.data?.messages || [];
+
+        if (oldMessages.length > 0) {
+          const formatted = oldMessages.map((m, idx) => ({
+            id: m.id ?? `${savedSessionId}-${idx}`,
+            sender: m.sender, // "user" hoặc "bot"
+            text: m.content,
+          }));
+          setAiMessages((prev) => [...prev.slice(0, 2), ...formatted]);
+          setHasSentFirstMessage(true);
+        }
+      } catch (err) {
+        console.error("Lỗi tải lịch sử chat:", err);
+        // Chỉ xóa session cũ nếu Backend xác nhận 404 (session không còn trong DB)
+        if (err.response?.status === 404) {
+          localStorage.removeItem("chat_session_id");
+        }
+      }
+      return;
+    }
+
+    // 2. Chưa có sessionId -> tạo phiên mới trên Backend và lưu vào localStorage
     try {
       const res = await axios.post("/api/sessions", {
         fullName: userInfo?.name || userInfo?.fullName || "Khách hàng",
@@ -135,14 +164,16 @@ export default function ChatWidget() {
         phone: userInfo?.phone || "",
       });
 
-      const serverSessionId = res.data?.sessionId || res.data?.data?.id || res.data?.id;
-      if (serverSessionId && UUID_REGEX.test(serverSessionId)) {
-        setSessionId(serverSessionId);
-      } else {
-        setSessionId(generateUUID());
-      }
+      const serverSessionId =
+        res.data?.sessionId || res.data?.data?.id || res.data?.id || generateUUID();
+
+      localStorage.setItem("chat_session_id", serverSessionId);
+      setSessionId(serverSessionId);
     } catch (err) {
-      setSessionId(generateUUID());
+      console.error("Lỗi tạo session mới:", err);
+      const fallbackId = generateUUID();
+      localStorage.setItem("chat_session_id", fallbackId);
+      setSessionId(fallbackId);
     }
   };
 
@@ -237,7 +268,10 @@ export default function ChatWidget() {
   const sendMessage = async (text) => {
     const content = text.trim();
     if (!content) return;
-    setHasSentFirstMessage(true);
+
+    if (activeTab === "ai") {
+      setHasSentFirstMessage(true);
+    }
 
     const userMsg = { id: Date.now(), sender: "user", text: content };
     if (activeTab === "ai") {
@@ -245,8 +279,9 @@ export default function ChatWidget() {
     } else {
       setAgentMessages((prev) => [...prev, userMsg]);
     }
+
     setInputText("");
-    setIsTyping(true);
+    if (activeTab === "ai") setIsTyping(true);
 
     try {
       let validSessionId = sessionId;
@@ -254,21 +289,31 @@ export default function ChatWidget() {
         validSessionId = generateUUID();
         setSessionId(validSessionId);
       }
+      localStorage.setItem("chat_session_id", validSessionId);
 
       const res = await axios.post("/api/chat/message", {
         sessionId: validSessionId,
         message: content,
+        mode: activeTab, // "ai" hoặc "agent"
       });
 
-      const replyText =
-        res.data?.data?.reply ||
-        res.data?.reply ||
-        "Cảm ơn bạn đã nhắn tin, chúng tôi đã ghi nhận!";
+      // Phân biệt rõ giữa trả về null (không cần bot rep) và thiếu dữ liệu
+      const hasReplyField =
+        res.data?.data && Object.prototype.hasOwnProperty.call(res.data.data, "reply");
 
-      const botMsg = { id: Date.now() + 1, sender: "bot", text: replyText };
+      const replyText = hasReplyField
+        ? res.data.data.reply
+        : (res.data?.reply ?? "Cảm ơn bạn đã nhắn tin, chúng tôi đã ghi nhận!");
 
-      if (activeTab === "ai") setAiMessages((prev) => [...prev, botMsg]);
-      else setAgentMessages((prev) => [...prev, botMsg]);
+      // Chỉ thêm bong bóng tin nhắn khi replyText có nội dung (khác null/rỗng)
+      if (replyText) {
+        const botMsg = { id: Date.now() + 1, sender: "bot", text: replyText };
+        if (activeTab === "ai") {
+          setAiMessages((prev) => [...prev, botMsg]);
+        } else {
+          setAgentMessages((prev) => [...prev, botMsg]);
+        }
+      }
     } catch (err) {
       setTimeout(() => {
         const fallbackMsg = {
